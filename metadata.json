@@ -1,0 +1,6 @@
+{
+  "name": "digitalvidya",
+  "description": "An accessible learning platform for rural communities providing skill-based education in local languages using AI.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
