@@ -30,8 +30,8 @@ const REASSURING_MESSAGES = [
   "The AI is carefully crafting your video..."
 ];
 
-// Quiz questions for Modern Farming - Beginner (Drip Irrigation)
-const QUIZ_QUESTIONS: QuizQuestion[] = [
+// Quiz questions for Modern Farming
+const FARMING_QUIZ_QUESTIONS: QuizQuestion[] = [
   {
     id: 1,
     question: "What is the main advantage of drip irrigation compared to traditional irrigation?",
@@ -94,6 +94,78 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   }
 ];
 
+// Quiz questions for Basic Finance (Beginner)
+const FINANCE_BEGINNER_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 1,
+    question: "What is the main benefit of keeping your savings in a bank account?",
+    options: [
+      "It keeps your money safe from theft and earns interest over time",
+      "It makes it harder to access your money",
+      "It gives you free shopping vouchers every month",
+      "It does not have any benefit compared to keeping cash at home"
+    ],
+    correctAnswer: 0,
+    explanation: "Banks keep your money secure from theft or damage, and they pay you interest, which helps your savings grow over time."
+  },
+  {
+    id: 2,
+    question: "What should you do if someone calls asking for your UPI PIN or OTP, claiming to be a bank official?",
+    options: [
+      "Share it immediately to prevent your account from being blocked",
+      "Share it only if they know your correct name and date of birth",
+      "Never share it with anyone, as banks will never ask for your PIN or OTP",
+      "Ask them to call back after 10 minutes"
+    ],
+    correctAnswer: 2,
+    explanation: "Your UPI PIN, OTP, and passwords are highly confidential. Banks and genuine officials will never ask for them. Sharing them can lead to money being stolen."
+  },
+  {
+    id: 3,
+    question: "What is the key feature of a Prime Minister Jan Dhan Yojana (PMJDY) account?",
+    options: [
+      "It requires a high minimum balance of Rs. 10,000",
+      "It is a zero-balance savings account with benefits like accident insurance",
+      "It can only be used for online shopping",
+      "It is only for children below 10 years"
+    ],
+    correctAnswer: 1,
+    explanation: "PMJDY accounts are zero-balance savings accounts designed to bring banking services to everyone, offering features like a Rupay debit card and free accident insurance."
+  },
+  {
+    id: 4,
+    question: "If you are a victim of a cyber fraud or digital payment scam in India, which helpline should you call?",
+    options: [
+      "100",
+      "1930",
+      "1098",
+      "102"
+    ],
+    correctAnswer: 1,
+    explanation: "1930 is the National Cyber Crime Helpline number in India. You should call it immediately to report financial fraud so the bank can try to freeze the transaction."
+  },
+  {
+    id: 5,
+    question: "What does 'Inflation' mean in simple terms?",
+    options: [
+      "The decrease in the prices of goods over time",
+      "The increase in the interest rates of banks",
+      "The general rise in prices, which reduces the purchasing power of your money",
+      "The process of printing more currency notes"
+    ],
+    correctAnswer: 2,
+    explanation: "Inflation is the rate at which the cost of goods and services rises, meaning a rupee today buys less than it did in the past. Saving and investing helps beat inflation."
+  }
+];
+
+const getQuizQuestions = (categoryId: string, diff: Difficulty): QuizQuestion[] => {
+  if (categoryId === 'finance' && diff === 'beginner') {
+    return FINANCE_BEGINNER_QUIZ_QUESTIONS;
+  }
+  return FARMING_QUIZ_QUESTIONS;
+};
+
+
 export const ContentPage: React.FC<Props> = ({ category, language, difficulty, onBack }) => {
   const [content, setContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -130,11 +202,15 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
   // Quiz related state
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<(number | null)[]>(new Array(QUIZ_QUESTIONS.length).fill(null));
+  const [selectedAnswers, setSelectedAnswers] = useState<(number | null)[]>(new Array(5).fill(null));
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [answeredCorrectly, setAnsweredCorrectly] = useState(false);
+  const [quizUnlocked, setQuizUnlocked] = useState(false);
+  const [quizUnlockCountdown, setQuizUnlockCountdown] = useState(15);
+
+  const activeQuizQuestions = getQuizQuestions(category.id, difficulty);
 
   const keySuffix = `${difficulty}_${language.code}`;
 
@@ -188,12 +264,49 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
     return () => clearInterval(interval);
   }, [videoStatus]);
 
+  // Effect to handle the quiz countdown timer
+  useEffect(() => {
+    let timer: any;
+    if (videoStatus === 'ready' && category.id === 'finance' && difficulty === 'beginner' && !quizUnlocked && quizUnlockCountdown > 0) {
+      timer = setInterval(() => {
+        setQuizUnlockCountdown(prev => {
+          if (prev <= 1) {
+            setQuizUnlocked(true);
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else if (category.id !== 'finance' || difficulty !== 'beginner') {
+      setQuizUnlocked(true);
+    }
+    return () => clearInterval(timer);
+  }, [videoStatus, category.id, difficulty, quizUnlocked, quizUnlockCountdown]);
+
   const handleGenerateVideo = async () => {
-    if (videoStatus === 'generating' || videoStatus === 'starting') return;
+    if (videoStatus === 'generating' || videoStatus === 'starting' || videoStatus === 'ready' || videoStatus === 'error') return;
     
     setVideoStatus('starting');
     setVideoError(null);
     
+    // For beginner level in basic finance, load the Pictory preview video
+    if (difficulty === 'beginner' && category.id === 'finance') {
+      try {
+        const pictoryUrl = 'https://video.pictory.ai/v2/preview/8d983fc0-b5f2-4689-8397-86c161c85f6a?mode=player';
+        setVideoUrl(pictoryUrl);
+        setVideoStatus('ready');
+        setQuizUnlocked(false);
+        setQuizUnlockCountdown(15);
+        return;
+      } catch (err: any) {
+        console.error(err);
+        setVideoStatus('error');
+        setVideoError('Failed to load video. Please try again.');
+        return;
+      }
+    }
+
     // For beginner level in farming, use YouTube video with fallback options
     if (difficulty === 'beginner' && category.id === 'farming') {
       try {
@@ -201,13 +314,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
         const youtubeEmbedUrl = 'https://www.youtube.com/embed/dk0SOTkJ8Mo?modestbranding=1&rel=0&controls=1&fs=1';
         setVideoUrl(youtubeEmbedUrl);
         setVideoStatus('ready');
-        
-        // Set a timeout to check if video loaded - if not, show alternative content
-        setTimeout(() => {
-          if (videoStatus === 'ready') {
-            // Video loaded, proceed normally
-          }
-        }, 3000);
+        setQuizUnlocked(true);
         return;
       } catch (err: any) {
         console.error(err);
@@ -354,7 +461,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
   const handleQuizStart = () => {
     setShowQuiz(true);
     setCurrentQuestionIndex(0);
-    setSelectedAnswers(new Array(QUIZ_QUESTIONS.length).fill(null));
+    setSelectedAnswers(new Array(activeQuizQuestions.length).fill(null));
     setQuizCompleted(false);
     setQuizScore(0);
     setAnsweredCorrectly(false);
@@ -367,7 +474,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
     newAnswers[currentQuestionIndex] = optionIndex;
     setSelectedAnswers(newAnswers);
 
-    const isCorrect = optionIndex === QUIZ_QUESTIONS[currentQuestionIndex].correctAnswer;
+    const isCorrect = optionIndex === activeQuizQuestions[currentQuestionIndex].correctAnswer;
     
     if (isCorrect) {
       setShowConfetti(true);
@@ -380,16 +487,16 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
   };
 
   const handleNextQuestion = () => {
-    if (currentQuestionIndex < QUIZ_QUESTIONS.length - 1) {
+    if (currentQuestionIndex < activeQuizQuestions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setAnsweredCorrectly(false);
     } else {
-      const score = selectedAnswers.filter((answer, idx) => answer === QUIZ_QUESTIONS[idx].correctAnswer).length;
+      const score = selectedAnswers.filter((answer, idx) => answer === activeQuizQuestions[idx].correctAnswer).length;
       setQuizScore(score);
       setQuizCompleted(true);
-      if (score === QUIZ_QUESTIONS.length) {
+      if (score === activeQuizQuestions.length) {
         setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 2000);
+        setTimeout(() => setShowConfetti(false), 4000);
       }
     }
   };
@@ -397,7 +504,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
   const handleQuizClose = () => {
     setShowQuiz(false);
     setCurrentQuestionIndex(0);
-    setSelectedAnswers(new Array(QUIZ_QUESTIONS.length).fill(null));
+    setSelectedAnswers(new Array(activeQuizQuestions.length).fill(null));
     setQuizCompleted(false);
     setQuizScore(0);
   };
@@ -481,10 +588,10 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
               <CheckCircle size={18} />
               {uiLabels.markComplete}
             </button>
-            {videoStatus === 'ready' && (
+            {videoStatus === 'ready' && quizUnlocked && (
               <button
                 onClick={handleQuizStart}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-xl font-bold text-sm shadow-[0_4px_0_#6d28d9] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer hover:bg-purple-600"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-xl font-bold text-sm shadow-[0_4px_0_#6d28d9] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer hover:bg-purple-600 animate-pulse"
               >
                 <BookOpen size={18} />
                 Quiz Me
@@ -497,35 +604,73 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
           {/* Video Section */}
           {(videoStatus === 'generating' || videoStatus === 'starting' || videoStatus === 'ready' || videoStatus === 'error') && (
             <div className={`mb-10 overflow-hidden rounded-[32px] border-4 bg-orange-50/30 ${videoStatus === 'error' ? 'border-red-100' : 'border-orange-100'}`}>
-{videoStatus === 'ready' && videoUrl ? (
-                 videoUrl.includes('youtube') || videoUrl.includes('vimeo') ? (
-                   <>
-                     <iframe
-                       src={videoUrl}
-                       className="w-full h-auto aspect-video"
-                       frameBorder="0"
-                       allowFullScreen
-                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                     />
-                     <div className="p-4 bg-orange-50 rounded-xl mt-4">
-                       <p className="text-sm text-orange-700">
-                         If video doesn't play, your network may be blocking YouTube content. 
-                         Continue reading below for the text guide.
-                       </p>
-                     </div>
-                   </>
-                 ) : (
-                   <video 
-                     src={videoUrl} 
-                     controls 
-                     className="w-full h-auto aspect-video object-cover"
-                     onError={() => {
-                       console.error('Video playback failed');
-                       setVideoStatus('error');
-                       setVideoError('Video playback failed. Please try again.');
-                     }}
-                   />
-                 )
+              {videoStatus === 'ready' && videoUrl ? (
+                 videoUrl.includes('youtube') || videoUrl.includes('vimeo') || videoUrl.includes('pictory.ai') ? (
+                    <>
+                      <iframe
+                        src={videoUrl}
+                        className="w-full h-auto aspect-video rounded-[24px]"
+                        frameBorder="0"
+                        allowFullScreen
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      />
+                      {videoUrl.includes('pictory.ai') && (
+                        <div className="p-6 bg-purple-50 border-2 border-dashed border-purple-200 rounded-2xl mt-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl">📺</span>
+                            <div>
+                              <h5 className="font-black text-purple-950 text-base md:text-lg">
+                                {!quizUnlocked ? "Watch the video to unlock the quiz!" : "Video completed!"}
+                              </h5>
+                              <p className="text-sm text-purple-700 font-bold">
+                                {!quizUnlocked 
+                                  ? `Unlocking quiz in ${quizUnlockCountdown} seconds...` 
+                                  : "Great job! You can now start the quiz."}
+                              </p>
+                            </div>
+                          </div>
+                          {!quizUnlocked ? (
+                            <button
+                              onClick={() => setQuizUnlocked(true)}
+                              className="text-purple-600 font-black text-xs uppercase tracking-wider hover:underline px-4 py-2 border-2 border-purple-300 rounded-xl hover:bg-purple-100 transition-all cursor-pointer"
+                            >
+                              Skip Timer ⚡
+                            </button>
+                          ) : (
+                            <motion.button
+                              initial={{ scale: 0.95 }}
+                              animate={{ scale: [1, 1.05, 1] }}
+                              transition={{ repeat: Infinity, duration: 1.5 }}
+                              onClick={handleQuizStart}
+                              className="flex items-center gap-2 px-6 py-3 bg-purple-500 text-white rounded-xl font-black shadow-[0_4px_0_#6d28d9] active:translate-y-[2px] active:shadow-none hover:bg-purple-600 transition-all cursor-pointer"
+                            >
+                              <BookOpen size={18} />
+                              Quiz Me!
+                            </motion.button>
+                          )}
+                        </div>
+                      )}
+                      {!videoUrl.includes('pictory.ai') && (
+                        <div className="p-4 bg-orange-50 rounded-xl mt-4">
+                          <p className="text-sm text-orange-700">
+                            If video doesn't play, your network may be blocking YouTube content. 
+                            Continue reading below for the text guide.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <video 
+                      src={videoUrl} 
+                      controls 
+                      className="w-full h-auto aspect-video object-cover"
+                      onError={() => {
+                        console.error('Video playback failed');
+                        setVideoStatus('error');
+                        setVideoError('Video playback failed. Please try again.');
+                      }}
+                    />
+                  )
               ) : videoStatus === 'error' ? (
                 <div className="aspect-video flex flex-col items-center justify-center p-8 text-center bg-red-50/20">
                   <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center text-white mb-6">
@@ -580,31 +725,44 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
 
           {/* Confetti Animation */}
           {showConfetti && (
-            <div className="fixed inset-0 pointer-events-none z-50">
-              {Array.from({ length: 50 }).map((_, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ 
-                    opacity: 1, 
-                    y: -10, 
-                    x: Math.random() * 100 - 50,
-                    rotate: 0 
-                  }}
-                  animate={{ 
-                    opacity: 0, 
-                    y: window.innerHeight, 
-                    x: Math.random() * 200 - 100,
-                    rotate: 360 
-                  }}
-                  transition={{ duration: 2, ease: "easeIn" }}
-                  className={`absolute w-2 h-2 rounded-full`}
-                  style={{
-                    left: `${50 + Math.random() * 20 - 10}%`,
-                    top: `${30 + Math.random() * 20}%`,
-                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7'][Math.floor(Math.random() * 5)]
-                  }}
-                />
-              ))}
+            <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
+              {Array.from({ length: 80 }).map((_, i) => {
+                const isLeft = i % 2 === 0;
+                // Shoot upwards and towards the center
+                const targetX = isLeft 
+                  ? window.innerWidth * 0.2 + Math.random() * (window.innerWidth * 0.4)
+                  : window.innerWidth * 0.4 + Math.random() * (window.innerWidth * 0.4);
+                const targetY = window.innerHeight * 0.1 + Math.random() * (window.innerHeight * 0.4);
+
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ 
+                      opacity: 1, 
+                      x: isLeft ? 0 : window.innerWidth,
+                      y: window.innerHeight * 0.8,
+                      scale: 0.5 + Math.random() * 0.8,
+                      rotate: 0 
+                    }}
+                    animate={{ 
+                      opacity: [1, 1, 0.8, 0],
+                      x: [isLeft ? 0 : window.innerWidth, targetX, targetX + (Math.random() * 100 - 50)],
+                      y: [window.innerHeight * 0.8, targetY, window.innerHeight + 50],
+                      rotate: 720 
+                    }}
+                    transition={{ 
+                      duration: 2.5 + Math.random() * 1.5, 
+                      ease: [0.1, 0.8, 0.3, 1], // Custom cubic-bezier for physics throw
+                    }}
+                    className="absolute w-3 h-3 rounded-sm"
+                    style={{
+                      left: '0px',
+                      backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#ff8a5c', '#10b981'][Math.floor(Math.random() * 7)],
+                      transformOrigin: 'center'
+                    }}
+                  />
+                );
+              })}
             </div>
           )}
 
@@ -621,7 +779,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
                     <div className="flex items-center justify-between mb-8">
                       <div>
                         <h2 className="text-3xl font-black text-orange-950 mb-2">Test Your Knowledge</h2>
-                        <p className="text-orange-700 font-bold">Question {currentQuestionIndex + 1} of {QUIZ_QUESTIONS.length}</p>
+                        <p className="text-orange-700 font-bold">Question {currentQuestionIndex + 1} of {activeQuizQuestions.length}</p>
                       </div>
                       <button
                         onClick={handleQuizClose}
@@ -634,19 +792,19 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
                     <div className="w-full bg-orange-100 rounded-full h-2 mb-8">
                       <div 
                         className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${((currentQuestionIndex + 1) / QUIZ_QUESTIONS.length) * 100}%` }}
+                        style={{ width: `${((currentQuestionIndex + 1) / activeQuizQuestions.length) * 100}%` }}
                       />
                     </div>
 
                     <div className="mb-8">
                       <h3 className="text-xl font-black text-orange-950 mb-6">
-                        {QUIZ_QUESTIONS[currentQuestionIndex].question}
+                        {activeQuizQuestions[currentQuestionIndex].question}
                       </h3>
 
                       <div className="space-y-3">
-                        {QUIZ_QUESTIONS[currentQuestionIndex].options.map((option, idx) => {
+                        {activeQuizQuestions[currentQuestionIndex].options.map((option, idx) => {
                           const isSelected = selectedAnswers[currentQuestionIndex] === idx;
-                          const isCorrect = idx === QUIZ_QUESTIONS[currentQuestionIndex].correctAnswer;
+                          const isCorrect = idx === activeQuizQuestions[currentQuestionIndex].correctAnswer;
                           const isAnswered = selectedAnswers[currentQuestionIndex] !== null;
                           const showCorrect = isAnswered && isCorrect;
                           const showWrong = isAnswered && isSelected && !isCorrect;
@@ -694,14 +852,14 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className={`mt-6 p-4 rounded-xl font-bold ${
-                            selectedAnswers[currentQuestionIndex] === QUIZ_QUESTIONS[currentQuestionIndex].correctAnswer
+                            selectedAnswers[currentQuestionIndex] === activeQuizQuestions[currentQuestionIndex].correctAnswer
                               ? 'bg-green-100 text-green-900 border-2 border-green-300'
                               : 'bg-orange-100 text-orange-900 border-2 border-orange-300'
                           }`}
                         >
-                          {selectedAnswers[currentQuestionIndex] === QUIZ_QUESTIONS[currentQuestionIndex].correctAnswer
-                            ? '🎉 Correct! ' + QUIZ_QUESTIONS[currentQuestionIndex].explanation
-                            : '📚 ' + QUIZ_QUESTIONS[currentQuestionIndex].explanation}
+                          {selectedAnswers[currentQuestionIndex] === activeQuizQuestions[currentQuestionIndex].correctAnswer
+                            ? '🎉 Correct! ' + activeQuizQuestions[currentQuestionIndex].explanation
+                            : '📚 ' + activeQuizQuestions[currentQuestionIndex].explanation}
                         </motion.div>
                       )}
                     </div>
@@ -713,7 +871,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
                         onClick={handleNextQuestion}
                         className="w-full bg-blue-500 text-white font-black py-3 rounded-xl hover:bg-blue-600 transition-all"
                       >
-                        {currentQuestionIndex === QUIZ_QUESTIONS.length - 1 ? 'See Results' : 'Next Question'}
+                        {currentQuestionIndex === activeQuizQuestions.length - 1 ? 'See Results' : 'Next Question'}
                       </motion.button>
                     )}
                   </>
@@ -732,9 +890,9 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
                     </div>
 
                     <h3 className="text-4xl font-black text-orange-950 mb-4">Quiz Complete!</h3>
-                    <div className="text-6xl font-black text-blue-500 mb-2">{quizScore}/{QUIZ_QUESTIONS.length}</div>
+                    <div className="text-6xl font-black text-blue-500 mb-2">{quizScore}/{activeQuizQuestions.length}</div>
                     <p className="text-2xl font-bold text-orange-900 mb-8">
-                      {quizScore === QUIZ_QUESTIONS.length 
+                      {quizScore === activeQuizQuestions.length 
                         ? '🌟 Perfect Score! You\'re a master!' 
                         : quizScore >= 4 
                         ? '👏 Great Job! Well done!' 
