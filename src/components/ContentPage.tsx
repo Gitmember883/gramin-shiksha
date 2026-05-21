@@ -277,7 +277,8 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
   // Effect to handle the quiz countdown timer
   useEffect(() => {
     let timer: any;
-    if (videoStatus === 'ready' && category.id === 'finance' && difficulty === 'beginner' && !quizUnlocked && quizUnlockCountdown > 0) {
+    const isSpecialVideo = (category.id === 'finance' || category.id === 'health') && difficulty === 'beginner';
+    if (videoStatus === 'ready' && isSpecialVideo && !quizUnlocked && quizUnlockCountdown > 0) {
       timer = setInterval(() => {
         setQuizUnlockCountdown(prev => {
           if (prev <= 1) {
@@ -288,7 +289,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
           return prev - 1;
         });
       }, 1000);
-    } else if (category.id !== 'finance' || difficulty !== 'beginner') {
+    } else if (!isSpecialVideo) {
       setQuizUnlocked(true);
     }
     return () => clearInterval(timer);
@@ -304,6 +305,23 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
     if (difficulty === 'beginner' && category.id === 'finance') {
       try {
         const pictoryUrl = 'https://video.pictory.ai/v2/preview/8d983fc0-b5f2-4689-8397-86c161c85f6a?mode=player';
+        setVideoUrl(pictoryUrl);
+        setVideoStatus('ready');
+        setQuizUnlocked(false);
+        setQuizUnlockCountdown(15);
+        return;
+      } catch (err: any) {
+        console.error(err);
+        setVideoStatus('error');
+        setVideoError('Failed to load video. Please try again.');
+        return;
+      }
+    }
+
+    // For beginner level in health and hygiene, load the Pictory preview video
+    if (difficulty === 'beginner' && category.id === 'health') {
+      try {
+        const pictoryUrl = 'https://video.pictory.ai/v2/preview/b0224046-efba-4dab-bba9-51f93b6c34e9?mode=player';
         setVideoUrl(pictoryUrl);
         setVideoStatus('ready');
         setQuizUnlocked(false);
