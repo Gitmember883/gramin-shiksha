@@ -22,9 +22,11 @@ export const LanguageSelector: React.FC<Props> = ({ onSelect }) => {
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-4xl mx-auto text-center"
       >
-        <div className="w-20 h-20 bg-orange-500 rounded-[24px] flex items-center justify-center text-white font-black text-4xl mx-auto mb-8 shadow-lg">
-          डी
-        </div>
+        <img 
+          src="/logo.jpg" 
+          alt="Digital Vidya Logo" 
+          className="w-48 h-48 object-contain mx-auto mb-8 rounded-[32px] shadow-md border-4 border-orange-200"
+        />
         <h1 className="text-5xl md:text-7xl mb-4 text-orange-950 font-black tracking-tighter">नमस्ते!</h1>
         <p className="text-xl md:text-2xl text-orange-800 mb-12 font-bold opacity-80 italic">अपनी भाषा चुनें • নিজের ভাষা নির্বাচন করুন • Choose Language</p>
         
@@ -46,10 +48,10 @@ export const LanguageSelector: React.FC<Props> = ({ onSelect }) => {
           ))}
         </div>
 
-        {/* Separate Link Section for digitalvidya */}
+        {/* Separate Link Section for Digital Vidya */}
         <div className="mt-16 max-w-md mx-auto bg-white p-6 rounded-[32px] border-b-8 border-r-8 border-orange-200 text-center shadow-sm">
           <p className="text-sm font-bold text-orange-950 mb-3 flex items-center justify-center gap-2">
-            <span>🔗</span> Separate Link for digitalvidya
+            <span>🔗</span> Separate Link for Digital Vidya
           </p>
           <div className="flex gap-2 items-center bg-orange-50 rounded-2xl p-2 border border-orange-100 overflow-hidden mb-3">
             <input 

@@ -465,7 +465,7 @@ function getFallbackChatResponse(message: string, language: string, userProfile?
 
   // English fallback chat response
   if (isGreeting) {
-    return `Hello ${userName ? userName : ""}! I am your Gramin Shiksha AI mentor. I am doing great, how are you? ${userName ? "I'm so glad to see you continuing your learning journey today!" : "I'm here to help you learn about farming, finance, health, and SDGs."} What would you like to explore today?`;
+    return `Hello ${userName ? userName : ""}! I am your Digital Vidya AI mentor. I am doing great, how are you? ${userName ? "I'm so glad to see you continuing your learning journey today!" : "I'm here to help you learn about farming, finance, health, and SDGs."} What would you like to explore today?`;
   }
   if (isProfileOrProgress) {
     if (!userName && completedCount === 0) {
@@ -474,10 +474,10 @@ function getFallbackChatResponse(message: string, language: string, userProfile?
     return `According to your profile, your name is ${userName || "Guest"}. ${userInterests ? `Your interests include ${userInterests}.` : ""} You have completed ${completedCount} topics so far ${completedTopics ? `(Topic IDs: ${completedTopics})` : ""}. Fantastic progress, keep it up! Let's study more modules together!`;
   }
   if (isSDG) {
-    return "The Sustainable Development Goals (SDGs) are a collection of 17 global goals set by the United Nations to end poverty, protect the planet, and ensure that all people enjoy peace and prosperity by 2030. In Gramin Shiksha, we actively align with Goal 1 (No Poverty), Goal 2 (Zero Hunger), Goal 3 (Good Health and Well-being), Goal 4 (Quality Education), and Goal 8 (Decent Work and Economic Growth) by teaching self-reliance skills.";
+    return "The Sustainable Development Goals (SDGs) are a collection of 17 global goals set by the United Nations to end poverty, protect the planet, and ensure that all people enjoy peace and prosperity by 2030. In Digital Vidya, we actively align with Goal 1 (No Poverty), Goal 2 (Zero Hunger), Goal 3 (Good Health and Well-being), Goal 4 (Quality Education), and Goal 8 (Decent Work and Economic Growth) by teaching self-reliance skills.";
   }
   if (msgLower.includes("hello") || msgLower.includes("hi") || msgLower.includes("hey")) {
-    return "Hello! I am your digitalvidya mentor. My active connection is resting due to high volume, but I am still here to assist you. You can ask me broad questions about Farming, Finance, Personal budgeting, Basic health, or Safe mobile payments. What are you looking to learn today?";
+    return "Hello! I am your Digital Vidya mentor. My active connection is resting due to high volume, but I am still here to assist you. You can ask me broad questions about Farming, Finance, Personal budgeting, Basic health, or Safe mobile payments. What are you looking to learn today?";
   }
   if (msgLower.includes("farm") || msgLower.includes("crop") || msgLower.includes("fertilizer") || msgLower.includes("water")) {
     return "Farming sustainably is key. Always prefer organic fertilizers like compost or vermicompost over strong chemical products. It protects soil architecture. Implement drip irrigation rows to feed water straight to the roots and preserve water sources. What specific crop or technique do you want to explore next?";

@@ -61,9 +61,11 @@ export default function App() {
                   }}
                   className="flex items-center gap-3 group cursor-pointer"
                 >
-                  <div className="w-12 h-12 bg-orange-500 flex items-center justify-center rounded-2xl text-white font-black text-2xl shadow-sm">
-                    डी
-                  </div>
+                  <img 
+                    src="/logo.jpg" 
+                    alt="Digital Vidya Logo" 
+                    className="w-12 h-12 object-contain rounded-xl border border-orange-100 shadow-sm"
+                  />
                   <span className="text-2xl font-black text-orange-900 tracking-tight">डिजिटल विद्या <span className="text-orange-500 uppercase text-xs align-middle font-black">pro</span></span>
                 </button>
                 
@@ -73,7 +75,7 @@ export default function App() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border-2 border-orange-200 rounded-full text-orange-850 font-black text-xs uppercase tracking-wider hover:bg-orange-50 transition-colors shadow-sm"
-                    title="Open digitalvidya in a separate tab outside the iframe"
+                    title="Open Digital Vidya in a separate tab outside the iframe"
                   >
                     <span>🔗</span> Separate Link
                   </a>
@@ -181,7 +183,7 @@ export default function App() {
       {/* Footer (Simplified for rural accessibility) */}
       <footer className="py-12 border-t border-black/5 text-center mt-auto opacity-50 flex flex-col items-center gap-2">
         <p className="font-serif italic text-brand-ink">Empowering Rural Communities through Knowledge</p>
-        <p className="text-xs uppercase tracking-widest">© 2026 digitalvidya Pro</p>
+        <p className="text-xs uppercase tracking-widest">© 2026 Digital Vidya</p>
         <a 
           href={window.location.origin} 
           target="_blank" 

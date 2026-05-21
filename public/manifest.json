@@ -1,6 +1,6 @@
 {
-  "name": "digitalvidya Pro",
-  "short_name": "digitalvidya",
+  "name": "Digital Vidya",
+  "short_name": "Digital Vidya",
   "description": "Empowering Rural Communities through Knowledge",
   "start_url": "/",
   "display": "standalone",
@@ -8,15 +8,9 @@
   "theme_color": "#f97316",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
+      "src": "/logo.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]
