@@ -1,9 +1,11 @@
-const CACHE_NAME = 'digitalvidya-v2';
+const CACHE_NAME = 'digitalvidya-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo.jpg'
+  '/logo.jpg',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 // If on localhost, bypass/unregister service worker immediately to avoid dev caching issues

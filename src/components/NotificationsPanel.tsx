@@ -90,7 +90,7 @@ export const NotificationsPanel: React.FC<Props> = ({ selectedLanguage, isOpen, 
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('Digital Vidya Pro', {
             body: 'Notifications enabled! You\'ll receive learning reminders.',
-            icon: '/logo.jpg',
+            icon: '/icon-192.png',
           });
         }
       } catch (e) {
