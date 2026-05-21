@@ -14,32 +14,39 @@ interface Props {
 }
 
 const getSpeechLocale = (langCode: string): string => {
+  const code = (langCode || "").toLowerCase();
+  
   const mapping: { [key: string]: string } = {
-    as: 'as-IN',
-    bn: 'bn-IN',
-    brx: 'brx-IN',
-    doi: 'doi-IN',
-    gu: 'gu-IN',
     hi: 'hi-IN',
-    kn: 'kn-IN',
-    ks: 'ks-IN',
-    gom: 'kok-IN',
-    mai: 'mai-IN',
-    ml: 'ml-IN',
-    mni: 'mni-IN',
-    mr: 'mr-IN',
-    ne: 'ne-NP',
-    or: 'or-IN',
-    pa: 'pa-IN',
-    sa: 'sa-IN',
-    sat: 'sat-IN',
-    sd: 'sd-IN',
-    ta: 'ta-IN',
+    bn: 'bn-IN',
     te: 'te-IN',
+    mr: 'mr-IN',
+    ta: 'ta-IN',
+    gu: 'gu-IN',
+    kn: 'kn-IN',
+    ml: 'ml-IN',
+    pa: 'pa-IN',
     ur: 'ur-IN',
+    or: 'or-IN',
     en: 'en-IN'
   };
-  return mapping[langCode] || `${langCode}-IN`;
+  
+  if (mapping[code]) {
+    return mapping[code];
+  }
+  
+  // Script / Geographic fallbacks to ensure unsupported regional languages still function beautifully
+  if (['brx', 'doi', 'ks', 'gom', 'mai', 'ne', 'sa', 'sat'].includes(code)) {
+    return 'hi-IN'; // Devnagari script languages fall back to Hindi
+  }
+  if (['as', 'mni'].includes(code)) {
+    return 'bn-IN'; // Assamese and Manipuri fall back to Bengali script
+  }
+  if (['sd'].includes(code)) {
+    return 'ur-IN'; // Sindhi falls back to Urdu (Arabic script)
+  }
+  
+  return `${code}-IN`;
 };
 
 const safeGetLocalStorage = (key: string, defaultValue: string): string => {
@@ -147,13 +154,19 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
 
     const updateVoices = () => {
       const allVoices = window.speechSynthesis.getVoices();
-      const locale = getSpeechLocale(selectedLanguage.code).toLowerCase().replace('_', '-');
-      const langPrefix = selectedLanguage.code.toLowerCase();
+      const resolvedLocale = getSpeechLocale(selectedLanguage.code);
+      const locale = resolvedLocale.toLowerCase().replace('_', '-');
+      const langPrefix = resolvedLocale.split('-')[0].toLowerCase();
       
-      const filtered = allVoices.filter(v => {
+      let filtered = allVoices.filter(v => {
         const voiceLang = v.lang.toLowerCase().replace('_', '-');
         return voiceLang.startsWith(langPrefix) || voiceLang === locale;
       });
+
+      // If no voices match the selected language, fall back to all available voices on the system
+      if (filtered.length === 0) {
+        filtered = allVoices;
+      }
 
       setAvailableVoices(filtered);
       
@@ -217,7 +230,6 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
 
     const utterance = new SpeechSynthesisUtterance(plainText);
     const locale = getSpeechLocale(selectedLanguage.code);
-    utterance.lang = locale;
     utterance.rate = voiceRate;
     utterance.pitch = voicePitch;
 
@@ -229,8 +241,12 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
     if (!voice) {
       voice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === locale.toLowerCase());
     }
+    
     if (voice) {
       utterance.voice = voice;
+      utterance.lang = voice.lang; // Match voice language to prevent playback errors
+    } else {
+      utterance.lang = locale;
     }
 
     utterance.onstart = () => setSpeakingMessageIndex(index);
