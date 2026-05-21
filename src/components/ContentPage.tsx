@@ -286,6 +286,70 @@ const DIGITAL_BEGINNER_QUIZ_QUESTIONS: QuizQuestion[] = [
   }
 ];
 
+// Quiz questions for Handicrafts (Beginner)
+const HANDICRAFTS_BEGINNER_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 1,
+    question: "What is the most important factor when choosing raw materials for making handicrafts to sell?",
+    options: [
+      "Buying the most expensive materials available",
+      "Choosing locally available, durable, and cost-effective materials",
+      "Using materials that break easily",
+      "Only buying imported materials"
+    ],
+    correctAnswer: 1,
+    explanation: "Using high-quality, durable, and locally sourced materials keeps production costs reasonable while ensuring the products last long and attract buyers."
+  },
+  {
+    id: 2,
+    question: "How should you price your finished handicraft item to ensure you make a profit?",
+    options: [
+      "Price it randomly based on what you feel like",
+      "Add the cost of materials and labor time, plus a small profit margin",
+      "Sell it below the cost of materials to attract customers",
+      "Price it at Rs. 10 Lakhs regardless of the item"
+    ],
+    correctAnswer: 1,
+    explanation: "Proper pricing must cover the cost of all materials and pay you for the time you spent making the item, plus a profit to grow your business."
+  },
+  {
+    id: 3,
+    question: "Why is good lighting important when taking pictures of your handicrafts to sell online?",
+    options: [
+      "It makes the phone battery last longer",
+      "It clearly shows the colors, textures, and details of your work to online buyers",
+      "It changes the actual color of the product to something else",
+      "It is not important; blurry photos are better"
+    ],
+    correctAnswer: 1,
+    explanation: "Clear, well-lit photos help online customers see the quality and true details of your handicraft, making them much more likely to buy."
+  },
+  {
+    id: 4,
+    question: "Which local platform is great for selling handicrafts directly to community members?",
+    options: [
+      "Weekly village markets (Haats), local festivals, and community fairs",
+      "Only international websites",
+      "Secret clubs",
+      "Standard television channels"
+    ],
+    correctAnswer: 0,
+    explanation: "Local markets, community fairs, and village Haats are excellent places to start selling directly to customers nearby and get immediate feedback."
+  },
+  {
+    id: 5,
+    question: "What is a key step to make your handicraft items stand out from competitors?",
+    options: [
+      "Copying someone else's work exactly and calling it yours",
+      "Adding a unique design, neat finishing, and good packaging",
+      "Lowering the quality to make it faster",
+      "Hiding the product from customers"
+    ],
+    correctAnswer: 1,
+    explanation: "High-quality finishing, unique touch, and clean packaging make your product attractive, professional, and distinct from others."
+  }
+];
+
 const getQuizQuestions = (categoryId: string, diff: Difficulty): QuizQuestion[] => {
   if (categoryId === 'finance' && diff === 'beginner') {
     return FINANCE_BEGINNER_QUIZ_QUESTIONS;
@@ -295,6 +359,9 @@ const getQuizQuestions = (categoryId: string, diff: Difficulty): QuizQuestion[] 
   }
   if (categoryId === 'digital' && diff === 'beginner') {
     return DIGITAL_BEGINNER_QUIZ_QUESTIONS;
+  }
+  if (categoryId === 'handicrafts' && diff === 'beginner') {
+    return HANDICRAFTS_BEGINNER_QUIZ_QUESTIONS;
   }
   return FARMING_QUIZ_QUESTIONS;
 };
@@ -411,7 +478,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
   // Effect to handle the quiz countdown timer
   useEffect(() => {
     let timer: any;
-    const isSpecialVideo = (category.id === 'finance' || category.id === 'health' || category.id === 'digital') && difficulty === 'beginner';
+    const isSpecialVideo = (category.id === 'finance' || category.id === 'health' || category.id === 'digital' || category.id === 'handicrafts') && difficulty === 'beginner';
     if (videoStatus === 'ready' && isSpecialVideo && !quizUnlocked && quizUnlockCountdown > 0) {
       timer = setInterval(() => {
         setQuizUnlockCountdown(prev => {
@@ -473,6 +540,23 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
     if (difficulty === 'beginner' && category.id === 'digital') {
       try {
         const pictoryUrl = 'https://video.pictory.ai/v2/preview/bdb77ea9-6b7f-499e-be9c-a8a51ae5e545?mode=player';
+        setVideoUrl(pictoryUrl);
+        setVideoStatus('ready');
+        setQuizUnlocked(false);
+        setQuizUnlockCountdown(15);
+        return;
+      } catch (err: any) {
+        console.error(err);
+        setVideoStatus('error');
+        setVideoError('Failed to load video. Please try again.');
+        return;
+      }
+    }
+
+    // For beginner level in handicrafts, load the Pictory preview video
+    if (difficulty === 'beginner' && category.id === 'handicrafts') {
+      try {
+        const pictoryUrl = 'https://video.pictory.ai/202605210637272572dfe468eebc445e388f53591a6dc4881/20260521064127272nyHXTwjqSRthCmj';
         setVideoUrl(pictoryUrl);
         setVideoStatus('ready');
         setQuizUnlocked(false);
