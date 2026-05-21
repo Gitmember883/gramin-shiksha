@@ -376,14 +376,49 @@ This guidance offers a starting point for exploring ${topic} successfully. Let y
 }
 
 // Fallback high-quality wise chat responses for quota-exceeded situations
-function getFallbackChatResponse(message: string, language: string): string {
+function getFallbackChatResponse(message: string, language: string, userProfile?: any, userProgress?: any): string {
   const msgLower = (message || "").toLowerCase();
   const isHindi = language && (language.toLowerCase().includes("hind") || language.includes("हिन्दी") || language.includes("हिंदी"));
   const isBengali = language && (language.toLowerCase().includes("beng") || language.includes("বাংলা") || language.includes("বंगाली"));
 
+  // Extracted user context for fallback
+  const userName = userProfile?.name || "";
+  const userInterests = Array.isArray(userProfile?.interests) ? userProfile.interests.join(", ") : "";
+  const completedCount = Array.isArray(userProgress?.completedIds) ? userProgress.completedIds.length : 0;
+  const completedTopics = Array.isArray(userProgress?.completedIds) ? userProgress.completedIds.join(", ") : "";
+
+  // 1. GREETING/HOW ARE YOU FALLBACK
+  const isGreeting = msgLower.includes("namaste") || msgLower.includes("pranam") || msgLower.includes("hello") || 
+                     msgLower.includes("hi") || msgLower.includes("hey") || msgLower.includes("नमस्ते") || 
+                     msgLower.includes("प्रणाम") || msgLower.includes("नमस्कार") || msgLower.includes("হ্যালো") || 
+                     msgLower.includes("ওহে") || msgLower.includes("how are you") || msgLower.includes("कैसे हो") || 
+                     msgLower.includes("কেমন আছ") || msgLower.includes("কেমন আছেন") || msgLower.includes("हाल") || 
+                     msgLower.includes("समाचार");
+
+  // 2. PROFILE/PROGRESS FALLBACK
+  const isProfileOrProgress = msgLower.includes("profile") || msgLower.includes("progress") || msgLower.includes("completed") || 
+                              msgLower.includes("my name") || msgLower.includes("who am i") || msgLower.includes("mera naam") || 
+                              msgLower.includes("আমার নাম") || msgLower.includes("আমি কে") || msgLower.includes("প্রগতি") || 
+                              msgLower.includes("प्रोफाइल") || msgLower.includes("कोर्स") || msgLower.includes("प्रোগ्रेस") ||
+                              msgLower.includes("क्या सीख चुका") || msgLower.includes("क्या सीख चुकी") || msgLower.includes("কি শিখেছি");
+
+  // 3. SDG FALLBACK
+  const isSDG = msgLower.includes("sdg") || msgLower.includes("sustainable development") || msgLower.includes("development goals") || 
+                msgLower.includes("सतत विकास") || msgLower.includes("विकास लक्ष्य") || msgLower.includes("উন্নয়ন লক্ষ্য") || 
+                msgLower.includes("এসডিজি") || msgLower.includes("sustainable goals");
+
   if (isHindi) {
-    if (msgLower.includes("नमस्ते") || msgLower.includes("hello") || msgLower.includes("hi") || msgLower.includes("प्रणाम")) {
-      return "नमस्ते! मैं आपका डिजिटल विद्या मेंटर हूँ। इस समय इंटरनेट थोड़ा धीमा है, लेकिन मैं आपकी सहायता के लिए तैयार हूँ। आप मुझसे खेतीबाड़ी, बचत खाता, स्वास्थ्य या मोबाइल सेवाओं के बारे में कोई भी बुनियादी प्रश्न पूछ सकते हैं। आप आज क्या जानना चाहते हैं?";
+    if (isGreeting) {
+      return `नमस्ते ${userName ? userName : ""}! मैं आपका ग्रामीण शिक्षा एआई मेंटर हूँ। मैं बहुत अच्छा हूँ, आप कैसे हैं? ${userName ? "मुझे बहुत खुशी है कि आप निरंतर सीख रहे हैं।" : "मैं एक एआई मेंटर हूँ जो आपको खेतीबाड़ी, बजट और स्वास्थ्य संबंधी कौशल सीखने में मदद कर सकता है।"} आज आप क्या सीखना चाहते हैं?`;
+    }
+    if (isProfileOrProgress) {
+      if (!userName && completedCount === 0) {
+        return "मुझे अभी तक आपका प्रोफाइल या प्रगति विवरण नहीं मिला है। आप अपना प्रोफाइल सेक्शन अपडेट कर सकते हैं ताकि मैं आपके बारे में जान सकूं और आपको बेहतर गाइड कर सकूं!";
+      }
+      return `आपकी प्रोफाइल के अनुसार, आपका नाम ${userName || "अतिथि"} है। ${userInterests ? `आपकी रुचि ${userInterests} में है।` : ""} आपने अब तक ${completedCount} विषयों को पूरा कर लिया है ${completedTopics ? `(विषय आईडी: ${completedTopics})` : ""}। बहुत बढ़िया! ऐसे ही नए-नए कौशल सीखते रहें!`;
+    }
+    if (isSDG) {
+      return "सतत विकास लक्ष्य (SDGs) या 'Sustainable Development Goals' 17 वैश्विक लक्ष्य हैं जिन्हें संयुक्त राष्ट्र द्वारा 2030 तक गरीबी मिटाने, पृथ्वी की रक्षा करने और सभी के लिए शांति व खुशहाली सुनिश्चित करने के लिए बनाया गया है। हमारी ग्रामीण शिक्षा ऐप मुख्य रूप से लक्ष्य 1 (गरीबी उन्मूलन), लक्ष्य 2 (भुखमरी मिटाना), लक्ष्य 3 (अच्छा स्वास्थ्य और कल्याण), लक्ष्य 4 (गुणवत्तापूर्ण शिक्षा) और लक्ष्य 8 (सज्जन कार्य और आर्थिक विकास) के क्षेत्र में काम करके ग्रामीण लोगों को आत्मनिर्भर बनाने में मदद करती है।";
     }
     if (msgLower.includes("खेती") || msgLower.includes("किसान") || msgLower.includes("फसल") || msgLower.includes("खाद")) {
       return "खेती के बारे में बहुत अच्छा सवाल पूछा आपने! हमेशा याद रखें कि मिट्टी को स्वस्थ रखने के लिए जैविक खाद (जैसे केंचुआ खाद या गोबर की खाद) सबसे अच्छी होती है। रासायनिक खाद से शुरुआत में उपज बढ़ती है लेकिन बाद में मिट्टी बंजर होने लगती है। पानी बचाने के लिए ड्रिप सिंचाई (बूंद-बूंद पानी) का उपयोग करें। क्या आप केंचुआ खाद बनाने की विधि जानना चाहते हैं?";
@@ -401,8 +436,17 @@ function getFallbackChatResponse(message: string, language: string): string {
   }
 
   if (isBengali) {
-    if (msgLower.includes("নমস্কার") || msgLower.includes("হ্যালো") || msgLower.includes("hello") || msgLower.includes("hi")) {
-      return "নমস্কার! আমি আপনার ডিজিটাল বিদ্যা মেন্টর। আইটি সার্ভার এখন একটু ধীরগতির, কিন্তু আমি আপনার প্রশ্নের উত্তর দিতে প্রস্তুত। আপনি চাষাবাদ, ব্যাঙ্কের সঞ্চয়, স্বাস্থ্য বা মোবাইল চালানো সংক্রান্ত যেকোনো প্রশ্ন করতে পারেন। আপনি আজ কী জানতে চান?";
+    if (isGreeting) {
+      return `নমস্কার ${userName ? userName : ""}! আমি আপনার গ্রামীণ শিক্ষা এআই মেন্টর। আমি খুব ভালো আছি, আপনি কেমন আছেন? ${userName ? "আমি অত্যন্ত আনন্দিত যে আপনি আপনার শেখা চালিয়ে যাচ্ছেন।" : "আমি একটি এআই মেন্টর যা আপনাকে চাষাবাদ, বাজেট এবং স্বাস্থ্য সংক্রান্ত দক্ষতা অর্জনে সাহায্য করতে পারে।"} আজ আপনি কী জানতে চান?`;
+    }
+    if (isProfileOrProgress) {
+      if (!userName && completedCount === 0) {
+        return "আমি এখনো আপনার প্রোফাইল বা অগ্রগতির বিবরণ পাইনি। আপনি অ্যাপে প্রোফাইল আপডেট করতে পারেন যাতে আমি আপনার সম্পর্কে জেনে আরও ভালোভাবে সাহায্য করতে পারি!";
+      }
+      return `আপনার প্রোফাইল অনুযায়ী, আপনার নাম ${userName || "অতিথি"}। ${userInterests ? `আপনার আগ্রহের বিষয় হলো ${userInterests}।` : ""} আপনি এ পর্যন্ত ${completedCount} টি বিষয় সম্পূর্ণ করেছেন ${completedTopics ? `(বিষয় আইডি: ${completedTopics})` : ""}। দারুণ কাজ! আপনার শিক্ষা এভাবেই চালিয়ে যান!`;
+    }
+    if (isSDG) {
+      return "টেকসই উন্নয়ন লক্ষ্যমাত্রা (SDGs) বা 'Sustainable Development Goals' হলো জাতিসংঘ কর্তৃক গৃহীত ১৭টি বিশ্বব্যাপী লক্ষ্য, যার মূল উদ্দেশ্য ২০৩০ সালের মধ্যে দারিদ্র্য দূর করা, পরিবেশ রক্ষা করা এবং বিশ্বের সকল মানুষের শান্তি ও সমৃদ্ধি নিশ্চিত করা। আমাদের গ্রামীণ শিক্ষা অ্যাপটি মূলত লক্ষ্য ১ (দারিদ্র্য বিমোচন), লক্ষ্য ২ (ক্ষুধামুক্তি), লক্ষ্য ৩ (সুস্বাস্থ্য ও কল্যাণ), লক্ষ্য ৪ (মানসম্মত শিক্ষা) এবং লক্ষ্য ৮ (শোভন কাজ ও অর্থনৈতিক প্রবৃদ্ধি) অর্জনে সাহায্য করে আপনাকে আরও স্বনির্ভর করতে প্রস্তুত করা হয়েছে।";
     }
     if (msgLower.includes("চাষ") || msgLower.includes("কৃষি") || msgLower.includes("সার") || msgLower.includes("ফসল")) {
       return "চাষাবাদ নিয়ে খুব ভালো প্রশ্ন করেছেন! মাটির উর্বরা শক্তি ধরে রাখতে সবসময় জৈব সার (যেমন কেঁচো সার বা গোবর সার) ব্যবহার করুন। আধুনিক ড্রিপ সেচ ব্যবহার করলে জল অনেক কম লাগে এবং ফসলও ভালো হয়। আপনি কী নিজের জমিতে কোনো বিশেষ চাষ শুরু করতে চাইছেন?";
@@ -420,6 +464,18 @@ function getFallbackChatResponse(message: string, language: string): string {
   }
 
   // English fallback chat response
+  if (isGreeting) {
+    return `Hello ${userName ? userName : ""}! I am your Gramin Shiksha AI mentor. I am doing great, how are you? ${userName ? "I'm so glad to see you continuing your learning journey today!" : "I'm here to help you learn about farming, finance, health, and SDGs."} What would you like to explore today?`;
+  }
+  if (isProfileOrProgress) {
+    if (!userName && completedCount === 0) {
+      return "I couldn't find your profile or progress details yet. Please update your profile page so I can give you more customized guidance!";
+    }
+    return `According to your profile, your name is ${userName || "Guest"}. ${userInterests ? `Your interests include ${userInterests}.` : ""} You have completed ${completedCount} topics so far ${completedTopics ? `(Topic IDs: ${completedTopics})` : ""}. Fantastic progress, keep it up! Let's study more modules together!`;
+  }
+  if (isSDG) {
+    return "The Sustainable Development Goals (SDGs) are a collection of 17 global goals set by the United Nations to end poverty, protect the planet, and ensure that all people enjoy peace and prosperity by 2030. In Gramin Shiksha, we actively align with Goal 1 (No Poverty), Goal 2 (Zero Hunger), Goal 3 (Good Health and Well-being), Goal 4 (Quality Education), and Goal 8 (Decent Work and Economic Growth) by teaching self-reliance skills.";
+  }
   if (msgLower.includes("hello") || msgLower.includes("hi") || msgLower.includes("hey")) {
     return "Hello! I am your digitalvidya mentor. My active connection is resting due to high volume, but I am still here to assist you. You can ask me broad questions about Farming, Finance, Personal budgeting, Basic health, or Safe mobile payments. What are you looking to learn today?";
   }
@@ -442,54 +498,80 @@ function getFallbackChatResponse(message: string, language: string): string {
 app.post("/api/content", async (req, res) => {
   const { topic, language, level = "beginner" } = req.body;
   
-  try {
-    const prompt = `Create a very simple, practical educational guide about "${topic}" strictly in ${language}. 
-    Every single word of the response must be in ${language}, except for technical terms where necessary.
-    Focus on rural applicability. Use clear, encouraging language. 
-    Format in Markdown with the following sections (translated to ${language}):
-    1. Title
-    2. Introduction (Why this is important)
-    3. Step-by-step instructions or Key points
-    4. Practical tips for rural households
-    5. A simple summary.
-    Keep the content short and easy to read. Target level: ${level}.`;
+  const prompt = `Create a very simple, practical educational guide about "${topic}" strictly in ${language}. 
+  Every single word of the response must be in ${language}, except for technical terms where necessary.
+  Focus on rural applicability. Use clear, encouraging language. 
+  Format in Markdown with the following sections (translated to ${language}):
+  1. Title
+  2. Introduction (Why this is important)
+  3. Step-by-step instructions or Key points
+  4. Practical tips for rural households
+  5. A simple summary.
+  Keep the content short and easy to read. Target level: ${level}.`;
 
-    const response = await withRetry(() => ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-    }));
-
-    res.json({ content: response.text });
-  } catch (error: any) {
-    console.warn(`Gemini Content Error: ${error.message || error}. Serving high-quality offline fallback for ${topic} in ${language}.`);
-    const fallbackMd = getFallbackContent(topic, language, level);
-    return res.json({ content: fallbackMd });
+  const models = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-3.5-flash"];
+  for (const modelName of models) {
+    try {
+      const response = await withRetry(() => ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+      }));
+      return res.json({ content: response.text });
+    } catch (error: any) {
+      console.warn(`Gemini Content Error with model ${modelName}: ${error.message || error}. Trying next model...`);
+    }
   }
+
+  console.warn(`All Gemini models failed for Content. Serving offline fallback for ${topic} in ${language}.`);
+  const fallbackMd = getFallbackContent(topic, language, level);
+  return res.json({ content: fallbackMd });
 });
 
 // API for the AI Skill Mentor
 app.post("/api/chat", async (req, res) => {
-  const { message, history, language } = req.body;
+  const { message, history, language, userProfile, userProgress } = req.body;
   
-  try {
-    const chat = ai.chats.create({
-      model: "gemini-3.5-flash",
-      config: {
-        systemInstruction: `You are a helpful, respectful elder-like mentor for rural people. 
-        Your goal is to explain complex skills (farming, finance, health) in very simple terms in ${language}.
-        Always encourage the user. If they ask about something dangerous, provide safe alternatives.
-        Keep responses concise and easy to understand.`,
-      },
-      history: history || [],
-    });
-
-    const response = await withRetry(() => chat.sendMessage({ message }));
-    res.json({ response: response.text });
-  } catch (error: any) {
-    console.warn(`Gemini Chat Error: ${error.message || error}. Serving high-quality wise chat fallback response.`);
-    const fallbackMsg = getFallbackChatResponse(message, language);
-    return res.json({ response: fallbackMsg });
+  let userContext = "";
+  if (userProfile) {
+    userContext += `\nUser Profile details:
+- Name: ${userProfile.name || "Guest"}
+- Age: ${userProfile.age || "Not specified"}
+- Gender: ${userProfile.gender || "Not specified"}
+- Interests: ${Array.isArray(userProfile.interests) ? userProfile.interests.join(", ") : "None"}
+- Bio: ${userProfile.bio || "None"}`;
   }
+  if (userProgress && Array.isArray(userProgress.completedIds)) {
+    userContext += `\nUser's Completed Topic/Course IDs: ${userProgress.completedIds.join(", ") || "None completed yet"}`;
+  }
+
+  const systemInstruction = `You are a helpful, respectful, and friendly elder-like mentor for rural people.
+Your goal is to explain complex skills (farming, finance, health) in simple terms, but you can also converse naturally about any topic like how the user is doing, current progress, or Sustainable Development Goals (SDGs).
+Always respond like a fully capable conversational AI (like Claude or ChatGPT) with a friendly, supportive, and warm mentor persona in ${language}.
+Always encourage the user and feel free to mention their progress or profile details to customize your answers if they ask about it.
+You are highly knowledgeable about Sustainable Development Goals (SDGs). If the user asks about them, explain them in simple terms, relating them to their rural lifestyle.
+Keep responses concise, engaging, and easy to understand. Here is the user's profile and progress context if available:${userContext}`;
+
+  const models = ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-3.5-flash"];
+  for (const modelName of models) {
+    try {
+      const chat = ai.chats.create({
+        model: modelName,
+        config: {
+          systemInstruction,
+        },
+        history: history || [],
+      });
+
+      const response = await withRetry(() => chat.sendMessage({ message }));
+      return res.json({ response: response.text });
+    } catch (error: any) {
+      console.warn(`Gemini Chat Error with model ${modelName}: ${error.message || error}. Trying next model...`);
+    }
+  }
+
+  console.warn("All Gemini Chat models failed. Serving high-quality wise chat fallback response.");
+  const fallbackMsg = getFallbackChatResponse(message, language, userProfile, userProgress);
+  return res.json({ response: fallbackMsg });
 });
 
 // High-Quality Category Video Mappings for Qouta Fallback

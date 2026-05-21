@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, X, Bot, User, Loader2, MessageSquare } from 'lucide-react';
 import { Language } from '../types';
+import { getUserProfile, getProgress } from '../services/storage';
 
 interface Message {
   role: 'user' | 'model';
@@ -50,13 +51,18 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
     setIsLoading(true);
 
     try {
+      const profile = await getUserProfile();
+      const progress = await getProgress();
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: input,
           history: messages,
-          language: selectedLanguage.nativeName
+          language: selectedLanguage.nativeName,
+          userProfile: profile,
+          userProgress: progress
         }),
       });
 
