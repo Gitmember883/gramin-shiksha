@@ -1,4 +1,67 @@
-import { get, set, del, keys } from 'idb-keyval';
+import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from 'idb-keyval';
+
+// Memory fallback for environments where IndexedDB is blocked (e.g. mobile private tabs/iframes)
+const memoryStore: Record<string, any> = {};
+
+const get = async (key: string): Promise<any> => {
+  try {
+    return await idbGet(key);
+  } catch (e) {
+    console.warn(`IndexedDB get failed for key "${key}", falling back to memory/localStorage:`, e);
+    try {
+      const localVal = localStorage.getItem(key);
+      return localVal ? JSON.parse(localVal) : memoryStore[key];
+    } catch {
+      return memoryStore[key];
+    }
+  }
+};
+
+const set = async (key: string, value: any): Promise<void> => {
+  try {
+    await idbSet(key, value);
+  } catch (e) {
+    console.warn(`IndexedDB set failed for key "${key}", falling back to memory/localStorage:`, e);
+    memoryStore[key] = value;
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Ignore
+    }
+  }
+};
+
+const del = async (key: string): Promise<void> => {
+  try {
+    await idbDel(key);
+  } catch (e) {
+    console.warn(`IndexedDB del failed for key "${key}", falling back to memory/localStorage:`, e);
+    delete memoryStore[key];
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore
+    }
+  }
+};
+
+const keys = async (): Promise<any[]> => {
+  try {
+    return await idbKeys();
+  } catch (e) {
+    console.warn("IndexedDB keys failed, falling back to memory/localStorage:", e);
+    try {
+      const storageKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k) storageKeys.push(k);
+      }
+      return Array.from(new Set([...storageKeys, ...Object.keys(memoryStore)]));
+    } catch {
+      return Object.keys(memoryStore);
+    }
+  }
+};
 import { OfflineCourse, UserProgress, UserProfile, UserPreferences, NotificationSettings, DEFAULT_USER_PREFERENCES, DEFAULT_NOTIFICATION_SETTINGS } from '../types';
 
 export type { UserProfile, UserPreferences, NotificationSettings };

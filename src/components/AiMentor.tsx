@@ -208,101 +208,149 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
     }
   }, [messages]);
 
+  const primeSpeech = () => {
+    if (!isSpeechSynthesisSupported) return;
+    try {
+      const utterance = new SpeechSynthesisUtterance(' ');
+      utterance.volume = 0;
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn("Failed to prime speech synthesis:", e);
+    }
+  };
+
   const speakText = (text: string, index: number) => {
     if (!isSpeechSynthesisSupported) return;
 
-    if (speakingMessageIndex === index) {
-      window.speechSynthesis.cancel();
+    try {
+      if (speakingMessageIndex === index) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {
+          // ignore
+        }
+        setSpeakingMessageIndex(null);
+        return;
+      }
+
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        // ignore
+      }
+
+      // Remove markdown symbols for speech synthesis
+      const plainText = text
+        .replace(/\*\*+/g, '')
+        .replace(/\*+/g, '')
+        .replace(/#+/g, '')
+        .replace(/`+/g, '')
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+        .trim();
+
+      const utterance = new SpeechSynthesisUtterance(plainText);
+      const locale = getSpeechLocale(selectedLanguage.code);
+      utterance.rate = voiceRate;
+      utterance.pitch = voicePitch;
+
+      const voices = window.speechSynthesis.getVoices();
+      let voice = null;
+      if (selectedVoiceURI) {
+        voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+      }
+      if (!voice) {
+        voice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === locale.toLowerCase());
+      }
+      
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang; // Match voice language to prevent playback errors
+      } else {
+        utterance.lang = locale;
+      }
+
+      utterance.onstart = () => setSpeakingMessageIndex(index);
+      utterance.onend = () => setSpeakingMessageIndex(null);
+      utterance.onerror = () => setSpeakingMessageIndex(null);
+
+      // Add a small delay for iOS Safari stability
+      setTimeout(() => {
+        try {
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {
+          console.error("SpeechSynthesis speak call error:", e);
+          setSpeakingMessageIndex(null);
+        }
+      }, 50);
+    } catch (error) {
+      console.error('Speech synthesis error:', error);
       setSpeakingMessageIndex(null);
-      return;
     }
-
-    window.speechSynthesis.cancel();
-
-    // Remove markdown symbols for speech synthesis
-    const plainText = text
-      .replace(/\*\*+/g, '')
-      .replace(/\*+/g, '')
-      .replace(/#+/g, '')
-      .replace(/`+/g, '')
-      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-      .trim();
-
-    const utterance = new SpeechSynthesisUtterance(plainText);
-    const locale = getSpeechLocale(selectedLanguage.code);
-    utterance.rate = voiceRate;
-    utterance.pitch = voicePitch;
-
-    const voices = window.speechSynthesis.getVoices();
-    let voice = null;
-    if (selectedVoiceURI) {
-      voice = voices.find(v => v.voiceURI === selectedVoiceURI);
-    }
-    if (!voice) {
-      voice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === locale.toLowerCase());
-    }
-    
-    if (voice) {
-      utterance.voice = voice;
-      utterance.lang = voice.lang; // Match voice language to prevent playback errors
-    } else {
-      utterance.lang = locale;
-    }
-
-    utterance.onstart = () => setSpeakingMessageIndex(index);
-    utterance.onend = () => setSpeakingMessageIndex(null);
-    utterance.onerror = () => setSpeakingMessageIndex(null);
-
-    window.speechSynthesis.speak(utterance);
   };
 
   const startListening = () => {
     if (!isSpeechRecognitionSupported) return;
 
-    // Stop speaking if currently speaking
-    if (isSpeechSynthesisSupported) {
-      window.speechSynthesis.cancel();
-      setSpeakingMessageIndex(null);
-    }
+    try {
+      // Prime speech synthesis on user click gesture so we can speak responses later
+      primeSpeech();
 
-    if (isListening) {
-      recognitionRef.current?.stop();
-      return;
-    }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = getSpeechLocale(selectedLanguage.code);
-
-    let finalTranscript = '';
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-      // Speak to answer auto-submit trigger
-      if (autoSubmitVoice && finalTranscript.trim()) {
-        handleSend(finalTranscript.trim());
+      // Stop speaking if currently speaking
+      if (isSpeechSynthesisSupported) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {
+          // ignore
+        }
+        setSpeakingMessageIndex(null);
       }
-    };
 
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
+      if (isListening) {
+        try {
+          recognitionRef.current?.stop();
+        } catch (e) {
+          // ignore
+        }
+        return;
+      }
+
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = getSpeechLocale(selectedLanguage.code);
+
+      let finalTranscript = '';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        // Speak to answer auto-submit trigger
+        if (autoSubmitVoice && finalTranscript.trim()) {
+          handleSend(finalTranscript.trim());
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        finalTranscript = transcript;
+        setInput(prev => (prev ? prev + ' ' : '') + transcript);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (error) {
+      console.error('Failed to start speech recognition:', error);
       setIsListening(false);
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      finalTranscript = transcript;
-      setInput(prev => (prev ? prev + ' ' : '') + transcript);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
+    }
   };
 
   const handleClose = () => {
@@ -317,9 +365,16 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
     const textToSend = (customInput || input).trim();
     if (!textToSend || isLoading) return;
     
+    // Prime speech synthesis on user click gesture so we can speak responses later
+    primeSpeech();
+
     // Stop any ongoing speech when user submits a message
     if (isSpeechSynthesisSupported) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        // ignore
+      }
       setSpeakingMessageIndex(null);
     }
     
@@ -365,6 +420,11 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
       setMessages(prev => [...prev, modelMessage]);
     } catch (error) {
       console.error('Chat error:', error);
+      const modelMessage: Message = { 
+        role: 'model', 
+        parts: [{ text: "I'm having a little trouble connecting. Please check your internet connection and try again." }] 
+      };
+      setMessages(prev => [...prev, modelMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -377,7 +437,10 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            primeSpeech();
+            setIsOpen(true);
+          }}
           className="fixed bottom-8 right-8 w-16 h-16 bg-orange-500 text-white rounded-[24px] shadow-xl flex items-center justify-center z-40 hover:scale-110 active:scale-95 transition-transform border-b-4 border-r-4 border-orange-700"
         >
           <MessageSquare size={32} />
