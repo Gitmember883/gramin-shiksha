@@ -222,12 +222,79 @@ const HEALTH_BEGINNER_QUIZ_QUESTIONS: QuizQuestion[] = [
   }
 ];
 
+// Quiz questions for Mobile Skills (Beginner)
+const DIGITAL_BEGINNER_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 1,
+    question: "What is the safest way to download new apps on your Android mobile phone?",
+    options: [
+      "Clicking on links sent in SMS or WhatsApp from unknown numbers",
+      "Using the official Google Play Store",
+      "Downloading them from random websites on the internet",
+      "Asking a stranger to transfer them using Bluetooth"
+    ],
+    correctAnswer: 1,
+    explanation: "Downloading apps from the official Google Play Store is the safest way because Google scans apps for viruses and security issues before allowing them."
+  },
+  {
+    id: 2,
+    question: "Which of the following should you NEVER share with anyone to protect your money and mobile accounts?",
+    options: [
+      "Your UPI PIN, bank OTP, or passwords",
+      "Your phone model name",
+      "Your favorite mobile game",
+      "Your profile picture"
+    ],
+    correctAnswer: 0,
+    explanation: "UPI PINs, bank OTPs, and passwords are highly confidential. Sharing them gives scammers access to transfer money from your account."
+  },
+  {
+    id: 3,
+    question: "If you receive a message on WhatsApp saying you have won a lottery of Rs. 25 Lakhs, what should you do?",
+    options: [
+      "Send them a small processing fee to claim the money",
+      "Share the message with all your friends and family",
+      "Ignore, block the number, and delete the message as it is a common scam",
+      "Send them your bank account details and ID card immediately"
+    ],
+    correctAnswer: 2,
+    explanation: "Government and authentic organizations never run lotteries on WhatsApp. These are phishing scams designed to steal your money or identity."
+  },
+  {
+    id: 4,
+    question: "What is a good practice to secure your phone if it is lost or stolen?",
+    options: [
+      "Keeping the phone without any lock screen password",
+      "Storing your screen lock PIN on a sticker pasted on the back of the phone",
+      "Setting up a strong screen lock (PIN, pattern, or fingerprint)",
+      "Disabling internet connection on the phone permanently"
+    ],
+    correctAnswer: 2,
+    explanation: "Setting a screen lock prevents unauthorized people from accessing your personal photos, messages, and banking apps."
+  },
+  {
+    id: 5,
+    question: "What does the 'Delete for Everyone' option on WhatsApp do?",
+    options: [
+      "Deletes the message from your phone only",
+      "Deletes the message from both your phone and the recipient's phone (if done within the time limit)",
+      "Deletes all messages in the chat history",
+      "Formats the other person's phone completely"
+    ],
+    correctAnswer: 1,
+    explanation: "'Delete for Everyone' allows you to delete a message you sent by mistake from both your phone and the recipient's chat."
+  }
+];
+
 const getQuizQuestions = (categoryId: string, diff: Difficulty): QuizQuestion[] => {
   if (categoryId === 'finance' && diff === 'beginner') {
     return FINANCE_BEGINNER_QUIZ_QUESTIONS;
   }
   if (categoryId === 'health' && diff === 'beginner') {
     return HEALTH_BEGINNER_QUIZ_QUESTIONS;
+  }
+  if (categoryId === 'digital' && diff === 'beginner') {
+    return DIGITAL_BEGINNER_QUIZ_QUESTIONS;
   }
   return FARMING_QUIZ_QUESTIONS;
 };
@@ -344,7 +411,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
   // Effect to handle the quiz countdown timer
   useEffect(() => {
     let timer: any;
-    const isSpecialVideo = (category.id === 'finance' || category.id === 'health') && difficulty === 'beginner';
+    const isSpecialVideo = (category.id === 'finance' || category.id === 'health' || category.id === 'digital') && difficulty === 'beginner';
     if (videoStatus === 'ready' && isSpecialVideo && !quizUnlocked && quizUnlockCountdown > 0) {
       timer = setInterval(() => {
         setQuizUnlockCountdown(prev => {
@@ -389,6 +456,23 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
     if (difficulty === 'beginner' && category.id === 'health') {
       try {
         const pictoryUrl = 'https://video.pictory.ai/v2/preview/b0224046-efba-4dab-bba9-51f93b6c34e9?mode=player';
+        setVideoUrl(pictoryUrl);
+        setVideoStatus('ready');
+        setQuizUnlocked(false);
+        setQuizUnlockCountdown(15);
+        return;
+      } catch (err: any) {
+        console.error(err);
+        setVideoStatus('error');
+        setVideoError('Failed to load video. Please try again.');
+        return;
+      }
+    }
+
+    // For beginner level in mobile skills, load the Pictory preview video
+    if (difficulty === 'beginner' && category.id === 'digital') {
+      try {
+        const pictoryUrl = 'https://video.pictory.ai/v2/preview/bdb77ea9-6b7f-499e-be9c-a8a51ae5e545?mode=player';
         setVideoUrl(pictoryUrl);
         setVideoStatus('ready');
         setQuizUnlocked(false);
