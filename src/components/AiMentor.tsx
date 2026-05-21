@@ -96,7 +96,14 @@ const SoundWave: React.FC<WaveProps> = ({ color = 'bg-orange-500', count = 5 }) 
 
 export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = safeGetLocalStorage('ai_mentor_chat_history', '[]');
+      return JSON.parse(saved);
+    } catch (e) {
+      return [];
+    }
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -124,6 +131,7 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const isInitialMount = useRef(true);
 
   const isSpeechRecognitionSupported = typeof window !== 'undefined' && 
     (!!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition);
@@ -147,6 +155,11 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
   useEffect(() => {
     safeSetLocalStorage('ai_mentor_auto_submit_voice', autoSubmitVoice.toString());
   }, [autoSubmitVoice]);
+
+  // Persist Chat History
+  useEffect(() => {
+    safeSetLocalStorage('ai_mentor_chat_history', JSON.stringify(messages));
+  }, [messages]);
 
   // Load and filter available voices based on selected language
   useEffect(() => {
@@ -200,6 +213,10 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
 
   // Handle auto-speak on new model response
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (messages.length > 0 && isTtsEnabled) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage.role === 'model') {
@@ -597,6 +614,26 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
                       <motion.div layout className="w-5 h-5 bg-white rounded-full shadow-md" />
                     </button>
                   </div>
+
+                  {/* Clear Chat History Button */}
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to clear your chat history?")) {
+                        setMessages([]);
+                        if (isSpeechSynthesisSupported) {
+                          try {
+                            window.speechSynthesis.cancel();
+                          } catch (e) {
+                            // ignore
+                          }
+                        }
+                        setSpeakingMessageIndex(null);
+                      }
+                    }}
+                    className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-2xl border-2 border-red-200 transition-colors text-sm shadow-sm cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>🗑️</span> Clear Chat History
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
