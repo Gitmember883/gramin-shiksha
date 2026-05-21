@@ -804,21 +804,23 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="card-vibrant max-w-2xl w-full p-8 md:p-12 max-h-[90vh] overflow-y-auto"
+                className="card-vibrant max-w-2xl w-full p-8 md:p-12 max-h-[90vh] overflow-y-auto relative"
               >
+                <button
+                  onClick={handleQuizClose}
+                  className="absolute top-4 right-4 md:top-6 md:right-6 text-orange-900/40 hover:text-orange-900 transition-colors w-10 h-10 flex items-center justify-center rounded-full hover:bg-orange-100/50 font-bold z-10 cursor-pointer text-xl"
+                  aria-label="Close Quiz"
+                >
+                  ✕
+                </button>
+
                 {!quizCompleted ? (
                   <>
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center justify-between mb-8 pr-8">
                       <div>
                         <h2 className="text-3xl font-black text-orange-950 mb-2">Test Your Knowledge</h2>
                         <p className="text-orange-700 font-bold">Question {currentQuestionIndex + 1} of {activeQuizQuestions.length}</p>
                       </div>
-                      <button
-                        onClick={handleQuizClose}
-                        className="text-orange-900/40 hover:text-orange-900 transition-colors"
-                      >
-                        ✕
-                      </button>
                     </div>
 
                     <div className="w-full bg-orange-100 rounded-full h-2 mb-8">
