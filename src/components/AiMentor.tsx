@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, X, Bot, User, Loader2, MessageSquare } from 'lucide-react';
+import { Send, X, Bot, Loader2, MessageSquare, Mic, MicOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { Language } from '../types';
 import { getUserProfile, getProgress } from '../services/storage';
 
@@ -13,12 +13,165 @@ interface Props {
   selectedLanguage: Language;
 }
 
+const getSpeechLocale = (langCode: string): string => {
+  const mapping: { [key: string]: string } = {
+    as: 'as-IN',
+    bn: 'bn-IN',
+    brx: 'brx-IN',
+    doi: 'doi-IN',
+    gu: 'gu-IN',
+    hi: 'hi-IN',
+    kn: 'kn-IN',
+    ks: 'ks-IN',
+    gom: 'kok-IN',
+    mai: 'mai-IN',
+    ml: 'ml-IN',
+    mni: 'mni-IN',
+    mr: 'mr-IN',
+    ne: 'ne-NP',
+    or: 'or-IN',
+    pa: 'pa-IN',
+    sa: 'sa-IN',
+    sat: 'sat-IN',
+    sd: 'sd-IN',
+    ta: 'ta-IN',
+    te: 'te-IN',
+    ur: 'ur-IN',
+    en: 'en-IN'
+  };
+  return mapping[langCode] || `${langCode}-IN`;
+};
+
+const safeGetLocalStorage = (key: string, defaultValue: string): string => {
+  try {
+    return localStorage.getItem(key) || defaultValue;
+  } catch (e) {
+    return defaultValue;
+  }
+};
+
+const safeSetLocalStorage = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    // Ignore iframe sandbox exceptions
+  }
+};
+
+interface WaveProps {
+  color?: string;
+  count?: number;
+}
+
+const SoundWave: React.FC<WaveProps> = ({ color = 'bg-orange-500', count = 5 }) => {
+  const bars = Array.from({ length: count });
+  return (
+    <div className="flex items-center gap-0.5 h-5 justify-center shrink-0">
+      {bars.map((_, i) => (
+        <motion.div
+          key={i}
+          className={`w-1 rounded-full ${color}`}
+          animate={{
+            height: [4, 18, 4],
+          }}
+          transition={{
+            duration: 0.5 + Math.random() * 0.5,
+            repeat: Infinity,
+            repeatType: "reverse",
+            ease: "easeInOut",
+            delay: i * 0.1,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Voice states
+  const [isTtsEnabled, setIsTtsEnabled] = useState(true);
+  const [speakingMessageIndex, setSpeakingMessageIndex] = useState<number | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  
+  // Voice modulation state
+  const [voiceRate, setVoiceRate] = useState(() => {
+    return parseFloat(safeGetLocalStorage('ai_mentor_voice_rate', '1.0'));
+  });
+  const [voicePitch, setVoicePitch] = useState(() => {
+    return parseFloat(safeGetLocalStorage('ai_mentor_voice_pitch', '1.0'));
+  });
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string | null>(() => {
+    const val = safeGetLocalStorage('ai_mentor_voice_uri', '');
+    return val || null;
+  });
+  const [autoSubmitVoice, setAutoSubmitVoice] = useState(() => {
+    return safeGetLocalStorage('ai_mentor_auto_submit_voice', 'false') === 'true';
+  });
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  const isSpeechRecognitionSupported = typeof window !== 'undefined' && 
+    (!!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition);
+  const isSpeechSynthesisSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+  // Persist Voice Settings safely
+  useEffect(() => {
+    safeSetLocalStorage('ai_mentor_voice_rate', voiceRate.toString());
+  }, [voiceRate]);
+
+  useEffect(() => {
+    safeSetLocalStorage('ai_mentor_voice_pitch', voicePitch.toString());
+  }, [voicePitch]);
+
+  useEffect(() => {
+    if (selectedVoiceURI) {
+      safeSetLocalStorage('ai_mentor_voice_uri', selectedVoiceURI);
+    }
+  }, [selectedVoiceURI]);
+
+  useEffect(() => {
+    safeSetLocalStorage('ai_mentor_auto_submit_voice', autoSubmitVoice.toString());
+  }, [autoSubmitVoice]);
+
+  // Load and filter available voices based on selected language
+  useEffect(() => {
+    if (!isSpeechSynthesisSupported) return;
+
+    const updateVoices = () => {
+      const allVoices = window.speechSynthesis.getVoices();
+      const locale = getSpeechLocale(selectedLanguage.code).toLowerCase().replace('_', '-');
+      const langPrefix = selectedLanguage.code.toLowerCase();
+      
+      const filtered = allVoices.filter(v => {
+        const voiceLang = v.lang.toLowerCase().replace('_', '-');
+        return voiceLang.startsWith(langPrefix) || voiceLang === locale;
+      });
+
+      setAvailableVoices(filtered);
+      
+      // Auto select first voice if URI is empty or not in filtered voices
+      if (filtered.length > 0) {
+        setSelectedVoiceURI(prev => {
+          if (prev && filtered.some(v => v.voiceURI === prev)) return prev;
+          return filtered[0].voiceURI;
+        });
+      }
+    };
+
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, [selectedLanguage, isSpeechSynthesisSupported]);
 
   // Expose toggle to window for dashboard button
   useEffect(() => {
@@ -32,23 +185,143 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
     }
   }, [messages, isOpen]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  // Handle auto-speak on new model response
+  useEffect(() => {
+    if (messages.length > 0 && isTtsEnabled) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'model') {
+        speakText(lastMessage.parts[0].text, messages.length - 1);
+      }
+    }
+  }, [messages]);
+
+  const speakText = (text: string, index: number) => {
+    if (!isSpeechSynthesisSupported) return;
+
+    if (speakingMessageIndex === index) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageIndex(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    // Remove markdown symbols for speech synthesis
+    const plainText = text
+      .replace(/\*\*+/g, '')
+      .replace(/\*+/g, '')
+      .replace(/#+/g, '')
+      .replace(/`+/g, '')
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+      .trim();
+
+    const utterance = new SpeechSynthesisUtterance(plainText);
+    const locale = getSpeechLocale(selectedLanguage.code);
+    utterance.lang = locale;
+    utterance.rate = voiceRate;
+    utterance.pitch = voicePitch;
+
+    const voices = window.speechSynthesis.getVoices();
+    let voice = null;
+    if (selectedVoiceURI) {
+      voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+    }
+    if (!voice) {
+      voice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === locale.toLowerCase());
+    }
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    utterance.onstart = () => setSpeakingMessageIndex(index);
+    utterance.onend = () => setSpeakingMessageIndex(null);
+    utterance.onerror = () => setSpeakingMessageIndex(null);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startListening = () => {
+    if (!isSpeechRecognitionSupported) return;
+
+    // Stop speaking if currently speaking
+    if (isSpeechSynthesisSupported) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageIndex(null);
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = getSpeechLocale(selectedLanguage.code);
+
+    let finalTranscript = '';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      // Speak to answer auto-submit trigger
+      if (autoSubmitVoice && finalTranscript.trim()) {
+        handleSend(finalTranscript.trim());
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      finalTranscript = transcript;
+      setInput(prev => (prev ? prev + ' ' : '') + transcript);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const handleClose = () => {
+    if (isSpeechSynthesisSupported) {
+      window.speechSynthesis.cancel();
+    }
+    setSpeakingMessageIndex(null);
+    setIsOpen(false);
+  };
+
+  const handleSend = async (customInput?: string) => {
+    const textToSend = (customInput || input).trim();
+    if (!textToSend || isLoading) return;
     
+    // Stop any ongoing speech when user submits a message
+    if (isSpeechSynthesisSupported) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageIndex(null);
+    }
+    
+    setInput('');
+    setIsLoading(true);
+
     if (!navigator.onLine) {
       const errorMsg: Message = { 
         role: 'model', 
         parts: [{ text: "I'm sorry, I need an internet connection to think. Please save your question for when you're back online!" }] 
       };
-      setMessages(prev => [...prev, { role: 'user', parts: [{ text: input }] }, errorMsg]);
-      setInput('');
+      setMessages(prev => [...prev, { role: 'user', parts: [{ text: textToSend }] }, errorMsg]);
+      setIsLoading(false);
       return;
     }
 
-    const userMessage: Message = { role: 'user', parts: [{ text: input }] };
+    const userMessage: Message = { role: 'user', parts: [{ text: textToSend }] };
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
 
     try {
       const profile = await getUserProfile();
@@ -58,7 +331,7 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input,
+          message: textToSend,
           history: messages,
           language: selectedLanguage.nativeName,
           userProfile: profile,
@@ -107,58 +380,215 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
             {/* Header */}
             <div className="bg-orange-500 p-8 text-white flex items-center justify-between border-b-4 border-orange-600">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 relative">
                   <Bot size={28} />
+                  {speakingMessageIndex !== null && (
+                    <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500"></span>
+                    </span>
+                  )}
                 </div>
                 <div>
-                  <h3 className="font-black text-2xl tracking-tight">AI Mentor</h3>
+                  <h3 className="font-black text-2xl tracking-tight flex items-center gap-2">
+                    AI Mentor
+                    {speakingMessageIndex !== null && (
+                      <span className="inline-flex items-center h-4 ml-1">
+                        <SoundWave color="bg-white" count={4} />
+                      </span>
+                    )}
+                  </h3>
                   <p className="text-xs text-orange-100 font-bold uppercase tracking-wider">Online in {selectedLanguage.nativeName}</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="p-3 hover:bg-white/10 rounded-2xl transition-colors"
-              >
-                <X size={28} />
-              </button>
+              <div className="flex items-center gap-1">
+                {isSpeechSynthesisSupported && (
+                  <button 
+                    onClick={() => {
+                      const nextVal = !isTtsEnabled;
+                      setIsTtsEnabled(nextVal);
+                      if (!nextVal) {
+                        window.speechSynthesis.cancel();
+                        setSpeakingMessageIndex(null);
+                      }
+                    }}
+                    className="p-3 hover:bg-white/10 rounded-2xl transition-colors cursor-pointer"
+                    title={isTtsEnabled ? "Mute responses" : "Unmute responses"}
+                  >
+                    {isTtsEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+                  </button>
+                )}
+                {/* Voice Settings Button */}
+                <button
+                  onClick={() => setShowVoiceSettings(prev => !prev)}
+                  className={`p-3 rounded-2xl transition-colors cursor-pointer ${showVoiceSettings ? 'bg-white/20' : 'hover:bg-white/10'}`}
+                  title="Voice Settings"
+                >
+                  <Settings size={24} />
+                </button>
+                <button 
+                  onClick={handleClose}
+                  className="p-3 hover:bg-white/10 rounded-2xl transition-colors cursor-pointer"
+                >
+                  <X size={28} />
+                </button>
+              </div>
             </div>
+
+            {/* Voice Settings Panel */}
+            <AnimatePresence>
+              {showVoiceSettings && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="bg-orange-50/95 border-b-2 border-orange-100 p-6 overflow-hidden space-y-4 shrink-0"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-orange-950 text-base">Voice Modulation Settings</span>
+                    <button 
+                      onClick={() => setShowVoiceSettings(false)}
+                      className="text-orange-900/60 hover:text-orange-900 cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Pitch Selector */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-black text-orange-900 uppercase tracking-wider">Voice Pitch</label>
+                      <select
+                        value={voicePitch}
+                        onChange={(e) => setVoicePitch(parseFloat(e.target.value))}
+                        className="w-full bg-white border-2 border-orange-200 rounded-xl p-2.5 text-sm font-bold text-orange-950 focus:outline-none focus:border-orange-500 transition-colors"
+                      >
+                        <option value="0.6">Deep Accent</option>
+                        <option value="0.8">Low Pitch</option>
+                        <option value="1.0">Normal / Medium</option>
+                        <option value="1.25">High Accent</option>
+                        <option value="1.5">Squeaky Pitch</option>
+                      </select>
+                    </div>
+
+                    {/* Rate/Speed Selector */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-black text-orange-900 uppercase tracking-wider">Speaking Speed</label>
+                      <select
+                        value={voiceRate}
+                        onChange={(e) => setVoiceRate(parseFloat(e.target.value))}
+                        className="w-full bg-white border-2 border-orange-200 rounded-xl p-2.5 text-sm font-bold text-orange-950 focus:outline-none focus:border-orange-500 transition-colors"
+                      >
+                        <option value="0.75">Slow Speed</option>
+                        <option value="1.0">Normal Speed</option>
+                        <option value="1.25">Fast Speed</option>
+                        <option value="1.5">Very Fast Speed</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Accent Voice Selector */}
+                  {availableVoices.length > 0 && (
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-black text-orange-900 uppercase tracking-wider">Voice Tone Accent</label>
+                      <select
+                        value={selectedVoiceURI || ''}
+                        onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                        className="w-full bg-white border-2 border-orange-200 rounded-xl p-2.5 text-sm font-bold text-orange-950 focus:outline-none focus:border-orange-500 transition-colors"
+                      >
+                        {availableVoices.map((v) => (
+                          <option key={v.voiceURI} value={v.voiceURI}>
+                            {v.name} ({v.lang})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Auto-Submit / Speak to Answer Toggle */}
+                  <div className="flex items-center justify-between p-4 bg-white border-2 border-orange-100 rounded-2xl shadow-sm">
+                    <div>
+                      <span className="text-sm font-black text-orange-950">Speak to Answer</span>
+                      <p className="text-[10px] text-orange-900/60 font-bold">Auto-send when you stop speaking</p>
+                    </div>
+                    <button
+                      onClick={() => setAutoSubmitVoice(prev => !prev)}
+                      className={`w-12 h-6 rounded-full transition-colors cursor-pointer flex items-center p-0.5 ${autoSubmitVoice ? 'bg-orange-500 justify-end' : 'bg-gray-300 justify-start'}`}
+                    >
+                      <motion.div layout className="w-5 h-5 bg-white rounded-full shadow-md" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-grow p-6 overflow-y-auto space-y-6 bg-orange-50/20">
               {messages.length === 0 && (
                 <div className="text-center py-12 px-8">
-                  <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-[28px] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                  <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-[28px] flex items-center justify-center mx-auto mb-6 shadow-inner animate-pulse">
                     <MessageSquare size={40} />
                   </div>
                   <h4 className="text-2xl font-black text-orange-950 mb-2">नमस्ते!</h4>
-                  <p className="text-orange-900/60 font-bold">
+                  <p className="text-orange-900/60 font-bold text-base leading-relaxed">
                     I am your personal skill mentor. Ask me anything about farming, finance, or health!
                   </p>
                 </div>
               )}
               {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-5 rounded-[24px] ${
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-center gap-2`}>
+                  <div className={`max-w-[78%] p-5 rounded-[24px] ${
                     msg.role === 'user' 
-                      ? 'bg-orange-500 text-white rounded-tr-none shadow-md' 
-                      : 'bg-white text-orange-950 shadow-sm rounded-tl-none border-2 border-orange-100 font-medium'
+                      ? 'bg-orange-500 text-white rounded-tr-none shadow-md font-bold' 
+                      : 'bg-white text-orange-950 shadow-sm rounded-tl-none border-2 border-orange-100 font-bold'
                   }`}>
                     {msg.parts[0].text}
                   </div>
+                  {msg.role === 'model' && isSpeechSynthesisSupported && (
+                    <button
+                      onClick={() => speakText(msg.parts[0].text, i)}
+                      className={`p-3 rounded-xl border-2 transition-all shrink-0 cursor-pointer flex items-center justify-center min-w-[42px] min-h-[42px] ${
+                        speakingMessageIndex === i 
+                          ? 'bg-orange-500 border-orange-500 text-white scale-110 shadow-md' 
+                          : 'bg-white border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300'
+                      }`}
+                      title={speakingMessageIndex === i ? "Stop playing" : "Read aloud"}
+                    >
+                      {speakingMessageIndex === i ? (
+                        <SoundWave color="bg-white" count={3} />
+                      ) : (
+                        <Volume2 size={18} />
+                      )}
+                    </button>
+                  )}
                 </div>
               ))}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-white p-5 rounded-[24px] rounded-tl-none border-2 border-orange-100 flex items-center gap-3 text-orange-900/40 font-bold">
-                    <Loader2 size={20} className="animate-spin" />
+                  <div className="bg-white p-5 rounded-[24px] rounded-tl-none border-2 border-orange-100 flex items-center gap-3 text-orange-900/40 font-bold shadow-sm">
+                    <Loader2 size={20} className="animate-spin text-orange-500" />
                     <span>Thinking...</span>
                   </div>
                 </div>
               )}
             </div>
 
+            {/* Listening Soundwave indicator */}
+            {isListening && (
+              <div className="bg-red-50 border-t-2 border-red-100 py-3 px-6 flex items-center justify-between text-red-600 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+                  <span className="text-xs font-black uppercase tracking-wider">Listening to you...</span>
+                </div>
+                <SoundWave color="bg-red-500" count={6} />
+                <span className="text-[10px] text-red-500/70 font-black uppercase tracking-wide">
+                  Auto-submit: {autoSubmitVoice ? "ON" : "OFF"}
+                </span>
+              </div>
+            )}
+
             {/* Input */}
-            <div className="p-6 bg-white border-t-2 border-orange-50">
+            <div className="p-6 bg-white border-t-2 border-orange-50 shrink-0">
               <div className="relative flex items-center gap-3">
                 <input
                   type="text"
@@ -166,15 +596,30 @@ export const AiMentor: React.FC<Props> = ({ selectedLanguage }) => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Ask a question..."
-                  className="w-full bg-orange-50/50 border-2 border-orange-100 rounded-[24px] py-4 pl-6 pr-16 focus:outline-none focus:border-orange-500 focus:ring-0 transition-all font-bold text-orange-950 placeholder:text-orange-900/30"
+                  className="w-full bg-orange-50/50 border-2 border-orange-100 rounded-[24px] py-4 pl-6 pr-28 focus:outline-none focus:border-orange-500 focus:ring-0 transition-all font-bold text-orange-950 placeholder:text-orange-900/30"
                 />
-                <button
-                  onClick={handleSend}
-                  disabled={isLoading || !input.trim()}
-                  className="absolute right-2 p-3 bg-orange-500 text-white rounded-[20px] shadow-lg disabled:opacity-50 hover:bg-orange-600 transition-colors"
-                >
-                  <Send size={24} />
-                </button>
+                <div className="absolute right-2 flex items-center gap-2">
+                  {isSpeechRecognitionSupported && (
+                    <button
+                      onClick={startListening}
+                      className={`p-3 rounded-[20px] transition-all cursor-pointer ${
+                        isListening 
+                          ? 'bg-red-500 text-white animate-pulse shadow-md scale-110' 
+                          : 'bg-orange-100 text-orange-600 hover:bg-orange-200 hover:scale-105 active:scale-95'
+                      }`}
+                      title={isListening ? "Listening... click to stop" : "Speak to type"}
+                    >
+                      {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleSend()}
+                    disabled={isLoading || !input.trim()}
+                    className="p-3 bg-orange-500 text-white rounded-[20px] shadow-lg disabled:opacity-50 hover:bg-orange-600 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Send size={20} />
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>
