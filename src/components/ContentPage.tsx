@@ -158,9 +158,76 @@ const FINANCE_BEGINNER_QUIZ_QUESTIONS: QuizQuestion[] = [
   }
 ];
 
+// Quiz questions for Health & Hygiene (Beginner)
+const HEALTH_BEGINNER_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 1,
+    question: "What is the most effective way to prevent the spread of germs and infections?",
+    options: [
+      "Washing hands with soap and clean running water for at least 20 seconds",
+      "Wiping hands on a dry cloth without washing",
+      "Rinsing hands with water only for 2 seconds",
+      "Wearing gloves all day without washing them"
+    ],
+    correctAnswer: 0,
+    explanation: "Washing hands thoroughly with soap and water removes germs effectively, preventing common diseases like diarrhea and respiratory infections."
+  },
+  {
+    id: 2,
+    question: "Why is it important to boil or filter drinking water?",
+    options: [
+      "To improve the color of the water",
+      "To kill harmful germs and bacteria that cause waterborne diseases",
+      "To make the water cool down faster",
+      "To reduce the amount of water"
+    ],
+    correctAnswer: 1,
+    explanation: "Boiling or filtering water kills pathogens, making it safe to drink and preventing waterborne illnesses like cholera and typhoid."
+  },
+  {
+    id: 3,
+    question: "How should household food be stored to keep it safe from contamination?",
+    options: [
+      "Left uncovered on the floor",
+      "Stored in clean, covered containers away from flies and pests",
+      "Placed in direct hot sunlight for several hours",
+      "Kept open near waste disposal areas"
+    ],
+    correctAnswer: 1,
+    explanation: "Keeping food covered and clean prevents flies and pests from carrying bacteria to the food, avoiding food poisoning."
+  },
+  {
+    id: 4,
+    question: "Which of the following is a key habit for personal hygiene?",
+    options: [
+      "Bathing regularly with soap and brushing teeth twice a day",
+      "Brushing teeth only once a week",
+      "Keeping nails long and dirty",
+      "Sharing personal towels and toothbrushes with everyone"
+    ],
+    correctAnswer: 0,
+    explanation: "Regular bathing and brushing teeth twice a day prevent infections, dental cavities, and maintain overall body health."
+  },
+  {
+    id: 5,
+    question: "What is the best way to dispose of dry and wet household waste?",
+    options: [
+      "Throwing it into open drains or streets",
+      "Dumping it near drinking water sources",
+      "Separating wet and dry waste and disposing of it in covered bins",
+      "Burning all plastic waste inside the home"
+    ],
+    correctAnswer: 2,
+    explanation: "Separating waste and using covered bins keeps the surroundings clean and prevents the breeding of mosquitoes and disease-carrying pests."
+  }
+];
+
 const getQuizQuestions = (categoryId: string, diff: Difficulty): QuizQuestion[] => {
   if (categoryId === 'finance' && diff === 'beginner') {
     return FINANCE_BEGINNER_QUIZ_QUESTIONS;
+  }
+  if (categoryId === 'health' && diff === 'beginner') {
+    return HEALTH_BEGINNER_QUIZ_QUESTIONS;
   }
   return FARMING_QUIZ_QUESTIONS;
 };
@@ -952,7 +1019,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
                       <div className="text-xl font-bold text-white mb-1">{quizScore} correct out of {activeQuizQuestions.length}</div>
                       <div className="text-xs font-medium text-purple-200 text-center">
                         {quizScore === activeQuizQuestions.length 
-                          ? '👑 Flawless! Master of Finance!' 
+                          ? `👑 Flawless! Master of ${category.title}!` 
                           : quizScore >= 4 
                           ? '🌟 Excellent job! Almost perfect!' 
                           : quizScore >= 3 
