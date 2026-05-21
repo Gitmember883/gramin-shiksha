@@ -210,6 +210,16 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
   const [quizUnlocked, setQuizUnlocked] = useState(false);
   const [quizUnlockCountdown, setQuizUnlockCountdown] = useState(15);
 
+  const autoAdvanceTimeoutRef = React.useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const activeQuizQuestions = getQuizQuestions(category.id, difficulty);
 
   const keySuffix = `${difficulty}_${language.code}`;
@@ -458,40 +468,12 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
     // You could add a toast here
   };
 
-  const handleQuizStart = () => {
-    setShowQuiz(true);
-    setCurrentQuestionIndex(0);
-    setSelectedAnswers(new Array(activeQuizQuestions.length).fill(null));
-    setQuizCompleted(false);
-    setQuizScore(0);
-    setAnsweredCorrectly(false);
-  };
-
-  const handleAnswerSelect = (optionIndex: number) => {
-    if (quizCompleted) return;
-    
-    const newAnswers = [...selectedAnswers];
-    newAnswers[currentQuestionIndex] = optionIndex;
-    setSelectedAnswers(newAnswers);
-
-    const isCorrect = optionIndex === activeQuizQuestions[currentQuestionIndex].correctAnswer;
-    
-    if (isCorrect) {
-      setShowConfetti(true);
-      setAnsweredCorrectly(true);
-      setTimeout(() => {
-        setShowConfetti(false);
-        setAnsweredCorrectly(false);
-      }, 1500);
-    }
-  };
-
-  const handleNextQuestion = () => {
+  const advanceQuiz = (currentAnswers: (number | null)[]) => {
     if (currentQuestionIndex < activeQuizQuestions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setCurrentQuestionIndex(prev => prev + 1);
       setAnsweredCorrectly(false);
     } else {
-      const score = selectedAnswers.filter((answer, idx) => answer === activeQuizQuestions[idx].correctAnswer).length;
+      const score = currentAnswers.filter((answer, idx) => answer === activeQuizQuestions[idx].correctAnswer).length;
       setQuizScore(score);
       setQuizCompleted(true);
       if (score === activeQuizQuestions.length) {
@@ -501,7 +483,57 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
     }
   };
 
+  const handleQuizStart = () => {
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+    }
+    setShowQuiz(true);
+    setCurrentQuestionIndex(0);
+    setSelectedAnswers(new Array(activeQuizQuestions.length).fill(null));
+    setQuizCompleted(false);
+    setQuizScore(0);
+    setAnsweredCorrectly(false);
+  };
+
+  const handleAnswerSelect = (optionIndex: number) => {
+    if (quizCompleted || selectedAnswers[currentQuestionIndex] !== null) return;
+    
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+    }
+
+    const newAnswers = [...selectedAnswers];
+    newAnswers[currentQuestionIndex] = optionIndex;
+    setSelectedAnswers(newAnswers);
+
+    const isCorrect = optionIndex === activeQuizQuestions[currentQuestionIndex].correctAnswer;
+    
+    if (isCorrect) {
+      setShowConfetti(true);
+      setAnsweredCorrectly(true);
+      autoAdvanceTimeoutRef.current = setTimeout(() => {
+        setShowConfetti(false);
+        setAnsweredCorrectly(false);
+        advanceQuiz(newAnswers);
+      }, 1500);
+    } else {
+      autoAdvanceTimeoutRef.current = setTimeout(() => {
+        advanceQuiz(newAnswers);
+      }, 3500);
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+    }
+    advanceQuiz(selectedAnswers);
+  };
+
   const handleQuizClose = () => {
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+    }
     setShowQuiz(false);
     setCurrentQuestionIndex(0);
     setSelectedAnswers(new Array(activeQuizQuestions.length).fill(null));
@@ -877,35 +909,97 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
                   </>
                 ) : (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="text-center"
                   >
                     <div className="mb-6 flex justify-center">
-                      <div className="relative">
-                        <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white">
-                          <Award size={60} />
+                      <div className="relative flex items-center justify-center">
+                        <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full scale-150" />
+                        <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full flex items-center justify-center text-white shadow-lg relative z-10">
+                          <Award size={56} className="animate-bounce" />
                         </div>
                       </div>
                     </div>
 
-                    <h3 className="text-4xl font-black text-orange-950 mb-4">Quiz Complete!</h3>
-                    <div className="text-6xl font-black text-blue-500 mb-2">{quizScore}/{activeQuizQuestions.length}</div>
-                    <p className="text-2xl font-bold text-orange-900 mb-8">
-                      {quizScore === activeQuizQuestions.length 
-                        ? '🌟 Perfect Score! You\'re a master!' 
-                        : quizScore >= 4 
-                        ? '👏 Great Job! Well done!' 
-                        : quizScore >= 3 
-                        ? '💪 Good Effort! Keep learning!' 
-                        : '📖 Keep practicing to improve!'}
-                    </p>
-                    <button
-                      onClick={handleQuizClose}
-                      className="bg-blue-500 text-white font-black py-3 px-8 rounded-xl hover:bg-blue-600 transition-all"
-                    >
-                      Close Quiz
-                    </button>
+                    <h3 className="text-4xl font-black text-orange-950 mb-2">Quiz Complete!</h3>
+                    <p className="text-sm font-bold text-orange-700 uppercase tracking-widest mb-6">Kahoot Style Results</p>
+
+                    <div className="inline-flex flex-col items-center justify-center p-8 bg-gradient-to-r from-purple-900 to-indigo-950 text-white rounded-[32px] border-4 border-purple-400/30 shadow-xl mb-8 w-full max-w-sm mx-auto">
+                      <span className="text-xs uppercase tracking-widest text-purple-300 font-black mb-2">Accuracy Score</span>
+                      <div className="text-6xl font-black text-yellow-300 mb-2">
+                        {quizScore === activeQuizQuestions.length ? "💯" : `${Math.round((quizScore / activeQuizQuestions.length) * 100)}%`}
+                      </div>
+                      <div className="text-xl font-bold text-white mb-1">{quizScore} correct out of {activeQuizQuestions.length}</div>
+                      <div className="text-xs font-medium text-purple-200 text-center">
+                        {quizScore === activeQuizQuestions.length 
+                          ? '👑 Flawless! Master of Finance!' 
+                          : quizScore >= 4 
+                          ? '🌟 Excellent job! Almost perfect!' 
+                          : quizScore >= 3 
+                          ? '👍 Good score! Keep practicing!' 
+                          : '📖 Keep studying to improve!'}
+                      </div>
+                    </div>
+
+                    <div className="text-left mb-8 max-h-[30vh] overflow-y-auto pr-2 space-y-3">
+                      <h4 className="font-black text-orange-950 text-lg mb-2">Question Breakdown:</h4>
+                      {activeQuizQuestions.map((q, idx) => {
+                        const selectedOptionIdx = selectedAnswers[idx];
+                        const isCorrect = selectedOptionIdx === q.correctAnswer;
+                        return (
+                          <div 
+                            key={q.id}
+                            className={`p-4 rounded-2xl border-2 flex items-start gap-4 transition-all ${
+                              isCorrect 
+                                ? 'bg-green-50/50 border-green-200' 
+                                : 'bg-red-50/50 border-red-200'
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-sm shrink-0 ${
+                              isCorrect ? 'bg-green-500' : 'bg-red-500'
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            <div className="grow">
+                              <p className="font-bold text-orange-950 text-sm leading-snug mb-1">{q.question}</p>
+                              {isCorrect ? (
+                                <p className="text-xs text-green-700 font-bold flex items-center gap-1">
+                                  <span>✓ Correct:</span> 
+                                  <span className="font-normal">{q.options[q.correctAnswer]}</span>
+                                </p>
+                              ) : (
+                                <div className="space-y-1">
+                                  <p className="text-xs text-red-700 font-bold flex items-center gap-1">
+                                    <span>✗ Your answer:</span> 
+                                    <span className="font-normal">{selectedOptionIdx !== null ? q.options[selectedOptionIdx] : 'Skipped'}</span>
+                                  </p>
+                                  <p className="text-xs text-green-700 font-bold flex items-center gap-1">
+                                    <span>✓ Correct:</span> 
+                                    <span className="font-normal">{q.options[q.correctAnswer]}</span>
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex gap-4">
+                      <button
+                        onClick={handleQuizStart}
+                        className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-black py-4 px-6 rounded-2xl shadow-[0_6px_0_#4c1d95] hover:translate-y-[2px] hover:shadow-[0_4px_0_#4c1d95] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer text-base"
+                      >
+                        Try Again 🔄
+                      </button>
+                      <button
+                        onClick={handleQuizClose}
+                        className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-black py-4 px-6 rounded-2xl shadow-[0_6px_0_#1d4ed8] hover:translate-y-[2px] hover:shadow-[0_4px_0_#1d4ed8] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer text-base"
+                      >
+                        Close Results ✕
+                      </button>
+                    </div>
                   </motion.div>
                 )}
               </motion.div>
