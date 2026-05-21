@@ -922,8 +922,7 @@ export const ContentPage: React.FC<Props> = ({ category, language, difficulty, o
                       </div>
                     </div>
 
-                    <h3 className="text-4xl font-black text-orange-950 mb-2">Quiz Complete!</h3>
-                    <p className="text-sm font-bold text-orange-700 uppercase tracking-widest mb-6">Kahoot Style Results</p>
+                    <h3 className="text-4xl font-black text-orange-950 mb-6">Quiz Complete!</h3>
 
                     <div className="inline-flex flex-col items-center justify-center p-8 bg-gradient-to-r from-purple-900 to-indigo-950 text-white rounded-[32px] border-4 border-purple-400/30 shadow-xl mb-8 w-full max-w-sm mx-auto">
                       <span className="text-xs uppercase tracking-widest text-purple-300 font-black mb-2">Accuracy Score</span>
