@@ -23,7 +23,7 @@ export const LanguageSelector: React.FC<Props> = ({ onSelect }) => {
         className="max-w-4xl mx-auto text-center"
       >
         <img 
-          src="/logo.jpg" 
+          src="/icon-512.png" 
           alt="Digital Vidya Logo" 
           className="w-48 h-48 object-contain mx-auto mb-8 rounded-[32px] shadow-md border-4 border-orange-200"
         />

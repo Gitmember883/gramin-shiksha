@@ -1,4 +1,4 @@
-const CACHE_NAME = 'digitalvidya-v3';
+const CACHE_NAME = 'digitalvidya-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
